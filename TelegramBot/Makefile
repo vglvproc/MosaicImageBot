@@ -8,12 +8,21 @@ INCLUDE_PATH := -I/usr/local/include
 LIBRARY_PATH := -L/usr/lib -L/usr/local/lib
 
 # Libraries to link
-LIBRARIES := -lTgBot -lssl -lcrypto -lsqlite3
+LIBRARIES := -lTgBot -lssl -lcrypto -lsqlite3 -ldocopt
+
 # The build target executable:
 TARGET := mosaic_image_bot
 
 # Source files
-SOURCES := main.cpp utils/Utils.cpp db/SqliteTable.cpp db/InitialEntities.cpp db/DatabaseManager.cpp
+SOURCES := main.cpp \
+           utils/Utils.cpp \
+           db/SqliteTable.cpp \
+           db/InitialEntities.cpp \
+           db/DatabaseManager.cpp \
+           commands/AddCategoryCommand.cpp \
+           commands/AddImagesToCategoryCommand.cpp \
+           commands/RemoveCategoryCommand.cpp \
+           commands/RunBotCommand.cpp
 
 all: $(TARGET)
 
