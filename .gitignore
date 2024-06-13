@@ -3,4 +3,4 @@
 *.db-wal
 .vscode/
 notes.txt
-TelegramBot/bot
+TelegramBot/mosaic_image_bot
