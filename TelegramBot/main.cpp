@@ -95,6 +95,11 @@ int main(int argc, const char** argv) {
         std::cout << "Unknown command." << std::endl;
     }
 
+    if(!initLanguagesTable(dbMain)) {
+        std::cerr << "Failed to initialize languages table" << std::endl;
+        return 1;
+    }
+
     TgBot::Bot bot("7347157371:AAEG1fu97mwYKd5W_lFInr3301L0weoiaKw");
     bot.getEvents().onCommand("start", [&bot, &dbMain](TgBot::Message::Ptr message) {
         handleStartCommand(bot, message, dbMain);
