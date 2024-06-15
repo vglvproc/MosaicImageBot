@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include <chrono>
 #include <unordered_set>
 
 std::string getRandomHexValue_16() {
@@ -64,4 +65,41 @@ std::vector<std::string> getRandomHexList(uint32_t count, uint16_t length, bool 
     }
 
     return hexList;
+}
+
+long long getCurrentTimestamp() {
+    auto now = std::chrono::system_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
+    return duration.count();
+}
+
+std::string getFormatTimestampWithMilliseconds(long long timestamp) {
+    using namespace std::chrono;
+
+    milliseconds ms{timestamp};
+    system_clock::time_point tp{ms};
+
+    time_t time = system_clock::to_time_t(tp);
+    auto millis = duration_cast<milliseconds>(tp.time_since_epoch()).count() % 1000;
+
+    std::tm* tm = std::localtime(&time);
+    std::stringstream ss;
+    ss << std::put_time(tm, "%Y.%m.%d %H:%M:%S") << '.' << std::setfill('0') << std::setw(3) << millis;
+
+    return ss.str();
+}
+
+std::string getFormatTimestampWithoutMilliseconds(long long timestamp) {
+    using namespace std::chrono;
+
+    milliseconds ms{timestamp};
+    system_clock::time_point tp{ms};
+
+    time_t time = system_clock::to_time_t(tp);
+
+    std::tm* tm = std::localtime(&time);
+    std::stringstream ss;
+    ss << std::put_time(tm, "%Y.%m.%d %H:%M:%S");
+
+    return ss.str();
 }

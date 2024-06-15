@@ -13,3 +13,9 @@ int32_t getRandomInt32(int32_t min, int32_t max);
 int16_t getRandomInt16(int16_t min, int16_t max);
 
 std::vector<std::string> getRandomHexList(uint32_t count, uint16_t length, bool unique);
+
+long long getCurrentTimestamp();
+
+std::string getFormatTimestampWithMilliseconds(long long timestamp);
+
+std::string getFormatTimestampWithoutMilliseconds(long long timestamp);
