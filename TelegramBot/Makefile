@@ -21,6 +21,7 @@ SOURCES := main.cpp \
            db/DatabaseManager.cpp \
            commands/AddCategoryCommand.cpp \
            commands/AddImagesToCategoryCommand.cpp \
+           commands/GetAvailableLangsCommand.cpp \
            commands/RemoveCategoryCommand.cpp \
            commands/RunBotCommand.cpp
 

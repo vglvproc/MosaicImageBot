@@ -9,6 +9,7 @@
 #include "commands/AddCategoryCommand.h"
 #include "commands/RemoveCategoryCommand.h"
 #include "commands/AddImagesToCategoryCommand.h"
+#include "commands/GetAvailableLangsCommand.h"
 #include "db/SqliteTable.h"
 #include "db/InitialEntities.h"
 #include "db/DatabaseManager.h"
@@ -21,6 +22,7 @@ Usage:
   MosaicImageBot add-category <category_name>
   MosaicImageBot remove-category <category_name>
   MosaicImageBot add-images-to-category <category_name> <path_to_images>
+  MosaicImageBot get-available-langs
   MosaicImageBot (-h | --help)
   MosaicImageBot --version
 
@@ -47,6 +49,8 @@ std::unique_ptr<Command> parseCommandLine(int argc, const char** argv) {
             std::string category_name = args["<category_name>"].asString();
             std::string path_to_images = args["<path_to_images>"].asString();
             return std::make_unique<AddImagesToCategoryCommand>(category_name, path_to_images);
+        } else if (args["get-available-langs"].asBool()) {
+            return std::make_unique<GetAvailableLangsCommand>();
         } else {
             return std::make_unique<RunBotCommand>();
         }
@@ -76,6 +80,11 @@ int main(int argc, const char** argv) {
         dbMain.checkAndCreateTable(table);
     }
 
+    if(!initLanguagesTable(dbMain)) {
+        std::cerr << "Failed to initialize languages table." << std::endl;
+        return 1;
+    }
+
     if (dynamic_cast<AddCategoryCommand*>(command.get())) {
         std::cout << "This is a AddCategoryCommand." << std::endl;
         AddCategoryCommand* cmd = dynamic_cast<AddCategoryCommand*>(command.get());
@@ -91,13 +100,13 @@ int main(int argc, const char** argv) {
         AddImagesToCategoryCommand* cmd = dynamic_cast<AddImagesToCategoryCommand*>(command.get());
         std::cout << "category_name: " << cmd->getCategoryName() <<  "; path_to_images: " << cmd->getPathToImages() << std::endl;
         return 0;
+    } else if (dynamic_cast<GetAvailableLangsCommand*>(command.get())) {
+        GetAvailableLangsCommand* cmd = dynamic_cast<GetAvailableLangsCommand*>(command.get());
+        cmd->setDatabaseManager(&dbMain);
+        cmd->executeCommand();
+        return 0;
     } else {
         std::cout << "Unknown command." << std::endl;
-    }
-
-    if(!initLanguagesTable(dbMain)) {
-        std::cerr << "Failed to initialize languages table" << std::endl;
-        return 1;
     }
 
     TgBot::Bot bot("7347157371:AAEG1fu97mwYKd5W_lFInr3301L0weoiaKw");
