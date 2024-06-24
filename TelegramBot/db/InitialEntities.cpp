@@ -35,8 +35,19 @@ std::vector<SqliteTable> getInitialTables() {
         "language_id"
     );
 
+    SqliteTable categories(
+        "categories",
+        {
+            {"category_name", DT::TEXT},
+            {"adding_timestamp", DT::TEXT},
+            {"adding_datetime", DT::TEXT}
+        },
+        "category_name"
+    );
+
     tables.push_back(users);
     tables.push_back(languages);
+    tables.push_back(categories);
 
     return tables;
 }
@@ -74,6 +85,21 @@ SqliteTable getLanguagesTable() {
         "language_id"
     );
     return languages;
+}
+
+SqliteTable getCategoriesTable() {
+    using DT = SqliteTable::DataType;
+
+    SqliteTable categories(
+        "categories",
+        {
+            {"category_name", DT::TEXT},
+            {"adding_timestamp", DT::TEXT},
+            {"adding_datetime", DT::TEXT}
+        },
+        "category_name"
+    );
+    return categories;
 }
 
 bool initLanguagesTable(DatabaseManager& dbManager) {

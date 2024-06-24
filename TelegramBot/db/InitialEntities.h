@@ -9,4 +9,6 @@ SqliteTable getUsersTable();
 
 SqliteTable getLanguagesTable();
 
+SqliteTable getCategoriesTable();
+
 bool initLanguagesTable(DatabaseManager& dbManager);

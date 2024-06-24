@@ -88,7 +88,13 @@ int main(int argc, const char** argv) {
     if (dynamic_cast<AddCategoryCommand*>(command.get())) {
         std::cout << "This is a AddCategoryCommand." << std::endl;
         AddCategoryCommand* cmd = dynamic_cast<AddCategoryCommand*>(command.get());
-        std::cout << "category_name: " << cmd->getCategoryName() << std::endl;
+        cmd->setDatabaseManager(&dbMain);
+        bool result = cmd->executeCommand();
+        if (result) {
+            std::cout << "Successfully added category \"" << cmd->getCategoryName() << "\" into database." << std::endl;
+        } else {
+            std::cout << "Failed to add category \"" << cmd->getCategoryName() << "\" into database." << std::endl;
+        }
         return 0;
     } else if (dynamic_cast<RemoveCategoryCommand*>(command.get())) {
         std::cout << "This is a RemoveCategoryCommand." << std::endl;
