@@ -4,5 +4,5 @@
 
 class RunBotCommand : public Command {
 public:
-    RunBotCommand();
+    bool executeCommand();
 };

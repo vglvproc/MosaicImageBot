@@ -19,6 +19,7 @@ R"(MosaicImageBot.
 
 Usage:
   MosaicImageBot
+  MosaicImageBot run
   MosaicImageBot add-category <category_name>
   MosaicImageBot remove-category <category_name>
   MosaicImageBot add-images-to-category <category_name> <path_to_images>
@@ -51,8 +52,11 @@ std::unique_ptr<Command> parseCommandLine(int argc, const char** argv) {
             return std::make_unique<AddImagesToCategoryCommand>(category_name, path_to_images);
         } else if (args["get-available-langs"].asBool()) {
             return std::make_unique<GetAvailableLangsCommand>();
-        } else {
+        } else if (args["run"].asBool()) {
             return std::make_unique<RunBotCommand>();
+        } else {
+            std::cout << USAGE;
+            exit(0);
         }
     } catch (const std::exception& e) {
         std::cerr << "Error parsing command line: " << e.what() << std::endl;
@@ -109,6 +113,10 @@ int main(int argc, const char** argv) {
     } else if (dynamic_cast<GetAvailableLangsCommand*>(command.get())) {
         GetAvailableLangsCommand* cmd = dynamic_cast<GetAvailableLangsCommand*>(command.get());
         cmd->setDatabaseManager(&dbMain);
+        cmd->executeCommand();
+        return 0;
+    } else if (dynamic_cast<RunBotCommand*>(command.get())) {
+        RunBotCommand* cmd = dynamic_cast<RunBotCommand*>(command.get());
         cmd->executeCommand();
         return 0;
     } else {

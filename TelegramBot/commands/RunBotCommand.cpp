@@ -1,3 +1,7 @@
+#include <iostream>
 #include "RunBotCommand.h"
 
-RunBotCommand::RunBotCommand() {}
+bool RunBotCommand::executeCommand() {
+    std::cout << "Running MosaicImageBot..." << std::endl;
+    return true;
+}
