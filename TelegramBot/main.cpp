@@ -34,6 +34,21 @@ Options:
   <path_to_images>   The path to the directory containing images to add to the category.
 )";
 
+bool checkMetapixelAvailability() {
+    std::array<char, 512> buffer;
+    std::string result;
+    FILE* pipe = popen("metapixel --version", "r");
+    if (!pipe) throw std::runtime_error("popen() failed!");
+
+    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+        result += buffer.data();
+    }
+
+    int returnCode = pclose(pipe);
+
+    return (returnCode == 0);
+}
+
 std::unique_ptr<Command> parseCommandLine(int argc, const char** argv) {
     try {
         std::map<std::string, docopt::value> args = docopt::docopt(USAGE,
@@ -118,9 +133,13 @@ int main(int argc, const char** argv) {
     } else if (dynamic_cast<RunBotCommand*>(command.get())) {
         RunBotCommand* cmd = dynamic_cast<RunBotCommand*>(command.get());
         cmd->executeCommand();
-        return 0;
     } else {
         std::cout << "Unknown command." << std::endl;
+    }
+
+    if (!checkMetapixelAvailability()) {
+        std::cout << "metapixel is not available in your system." << std::endl;
+        return 1;
     }
 
     TgBot::Bot bot("7347157371:AAEG1fu97mwYKd5W_lFInr3301L0weoiaKw");
