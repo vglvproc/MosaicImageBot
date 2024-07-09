@@ -3,7 +3,6 @@
 #include <iostream>
 #include <filesystem>
 #include <string>
-#include <tgbot/tgbot.h>
 #include "utils/Utils.h"
 #include "commands/RunBotCommand.h"
 #include "commands/AddCategoryCommand.h"
@@ -80,16 +79,17 @@ std::unique_ptr<Command> parseCommandLine(int argc, const char** argv) {
     return nullptr;
 }
 
-void handleStartCommand(TgBot::Bot& bot, TgBot::Message::Ptr message, DatabaseManager& dbMain) {
-    bot.getApi().sendMessage(message->chat->id, "Hello!", false, 0, nullptr, "Markdown");
-}
-
 int main(int argc, const char** argv) {
     std::unique_ptr<Command> command = parseCommandLine(argc, argv);
 
     if (!command) {
         std::cerr << "Invalid command or arguments." << std::endl;
         std::cout << USAGE << std::endl;
+        return 1;
+    }
+
+    if (!checkMetapixelAvailability()) {
+        std::cout << "metapixel is not available in your system." << std::endl;
         return 1;
     }
 
@@ -132,30 +132,11 @@ int main(int argc, const char** argv) {
         return 0;
     } else if (dynamic_cast<RunBotCommand*>(command.get())) {
         RunBotCommand* cmd = dynamic_cast<RunBotCommand*>(command.get());
+        cmd->setDatabaseManager(&dbMain);
         cmd->executeCommand();
+        return 0;
     } else {
         std::cout << "Unknown command." << std::endl;
-    }
-
-    if (!checkMetapixelAvailability()) {
-        std::cout << "metapixel is not available in your system." << std::endl;
-        return 1;
-    }
-
-    TgBot::Bot bot("7347157371:AAEG1fu97mwYKd5W_lFInr3301L0weoiaKw");
-    bot.getEvents().onCommand("start", [&bot, &dbMain](TgBot::Message::Ptr message) {
-        handleStartCommand(bot, message, dbMain);
-    });
-
-    try {
-        printf("Bot username: %s\n", bot.getApi().getMe()->username.c_str());
-        TgBot::TgLongPoll longPoll(bot);
-        while (true) {
-            printf("Long poll started\n");
-            longPoll.start();
-        }
-    } catch (TgBot::TgException& e) {
-        printf("error: %s\n", e.what());
     }
 
     return 0;
