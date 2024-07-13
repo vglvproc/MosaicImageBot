@@ -45,9 +45,22 @@ std::vector<SqliteTable> getInitialTables() {
         "category_name"
     );
 
+    SqliteTable sessions(
+        "sessions",
+        {
+            {"session_id", DT::TEXT},
+            {"user_id", DT::TEXT},
+            {"current_step", DT::INTEGER},
+            {"adding_timestamp", DT::TEXT},
+            {"adding_datetime", DT::TEXT}
+        },
+        "session_id"
+    );
+
     tables.push_back(users);
     tables.push_back(languages);
     tables.push_back(categories);
+    tables.push_back(sessions);
 
     return tables;
 }
@@ -102,15 +115,32 @@ SqliteTable getCategoriesTable() {
     return categories;
 }
 
+SqliteTable getSessionsTable() {
+    using DT = SqliteTable::DataType;
+
+    SqliteTable sessions(
+        "sessions",
+        {
+            {"session_id", DT::TEXT},
+            {"user_id", DT::TEXT},
+            {"current_step", DT::INTEGER},
+            {"adding_timestamp", DT::TEXT},
+            {"adding_datetime", DT::TEXT}
+        },
+        "session_id"
+    );
+    return sessions;
+}
+
 bool initLanguagesTable(DatabaseManager& dbManager) {
     SqliteTable table = getLanguagesTable();
 
     std::vector<std::tuple<int, std::string, std::string>> languages = {
-        std::make_tuple(1, std::string("Русский"), std::string("\\U0001F1F7\\U0001F1FA")),
-        std::make_tuple(2, std::string("English"), std::string("\\U0001F1EC\\U0001F1E7")),
-        std::make_tuple(3, std::string("Deutsch"), std::string("\\U0001F1E9\\U0001F1EA")),
-        std::make_tuple(4, std::string("Français"), std::string("\\U0001F1EB\\U0001F1F7")),
-        std::make_tuple(5, std::string("Español"), std::string("\\U0001F1EA\\U0001F1F8")),
+        std::make_tuple(1, std::string("Русский"), std::string("🇷🇺")),
+        std::make_tuple(2, std::string("English"), std::string("🇺🇸")),
+        std::make_tuple(3, std::string("Deutsch"), std::string("🇩🇪")),
+        std::make_tuple(4, std::string("Français"), std::string("🇫🇷")),
+        std::make_tuple(5, std::string("Español"), std::string("🇪🇸")),
     };
 
     for (const auto& [id, name, flag] : languages) {

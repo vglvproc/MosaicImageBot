@@ -2,6 +2,9 @@
 #include "Command.h"
 #include <string>
 #include "../db/DatabaseManager.h"
+#include "../db/SqliteTable.h"
+#include "../db/InitialEntities.h"
+#include "../workflow/BotWorkflow.h"
 
 class RunBotCommand : public Command {
 public:
