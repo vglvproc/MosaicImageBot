@@ -110,6 +110,72 @@ std::string SqliteTable::generateInsertSQL(const std::vector<FieldValue>& row, b
     return sql.str();
 }
 
+std::string SqliteTable::generateUpdateSQL(const std::vector<FieldValue>& updateRow, const std::vector<FieldValue>& whereRow) const {
+    std::ostringstream sql;
+    sql << "UPDATE " << name_ << " SET ";
+
+    for (size_t i = 0; i < updateRow.size(); ++i) {
+        sql << updateRow[i].field.name << " = ";
+        const auto& value = updateRow[i].value;
+        switch (updateRow[i].field.type) {
+            case DataType::INTEGER:
+                sql << std::get<int>(value);
+                break;
+            case DataType::REAL:
+                sql << std::get<double>(value);
+                break;
+            case DataType::TEXT:
+                sql << "'" << SqliteTable::escapeString(std::get<std::string>(value)) << "'";
+                break;
+            case DataType::BLOB: {
+                const auto& blob = std::get<std::vector<unsigned char>>(value);
+                sql << "x'";
+                for (const auto& byte : blob) {
+                    sql << std::setw(2) << std::setfill('0') << std::hex << (int)byte;
+                }
+                sql << "'";
+                break;
+            }
+        }
+        if (i < updateRow.size() - 1) {
+            sql << ", ";
+        }
+    }
+
+    if (!whereRow.empty()) {
+        sql << " WHERE ";
+        for (size_t i = 0; i < whereRow.size(); ++i) {
+            sql << whereRow[i].field.name << " = ";
+            const auto& value = whereRow[i].value;
+            switch (whereRow[i].field.type) {
+                case DataType::INTEGER:
+                    sql << std::get<int>(value);
+                    break;
+                case DataType::REAL:
+                    sql << std::get<double>(value);
+                    break;
+                case DataType::TEXT:
+                    sql << "'" << SqliteTable::escapeString(std::get<std::string>(value)) << "'";
+                    break;
+                case DataType::BLOB: {
+                    const auto& blob = std::get<std::vector<unsigned char>>(value);
+                    sql << "x'";
+                    for (const auto& byte : blob) {
+                        sql << std::setw(2) << std::setfill('0') << std::hex << (int)byte;
+                    }
+                    sql << "'";
+                    break;
+                }
+            }
+            if (i < whereRow.size() - 1) {
+                sql << " AND ";
+            }
+        }
+    }
+
+    return sql.str();
+}
+
 std::string SqliteTable::generateSelectAllSQL() const {
     std::ostringstream sql;
     sql << "SELECT * FROM " << this->name_;

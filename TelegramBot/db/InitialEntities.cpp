@@ -51,6 +51,7 @@ std::vector<SqliteTable> getInitialTables() {
             {"session_id", DT::TEXT},
             {"user_id", DT::TEXT},
             {"current_step", DT::INTEGER},
+            {"selected_language_id", DT::INTEGER},
             {"adding_timestamp", DT::TEXT},
             {"adding_datetime", DT::TEXT}
         },
@@ -124,6 +125,7 @@ SqliteTable getSessionsTable() {
             {"session_id", DT::TEXT},
             {"user_id", DT::TEXT},
             {"current_step", DT::INTEGER},
+            {"selected_language_id", DT::INTEGER},
             {"adding_timestamp", DT::TEXT},
             {"adding_datetime", DT::TEXT}
         },
