@@ -13,4 +13,6 @@ SqliteTable getCategoriesTable();
 
 SqliteTable getSessionsTable();
 
+SqliteTable getMessagesTable();
+
 bool initLanguagesTable(DatabaseManager& dbManager);

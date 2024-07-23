@@ -1,6 +1,7 @@
 #include "InitialEntities.h"
 #include "SqliteTable.h"
 #include "../utils/Utils.h"
+#include "../workflow/BotWorkflow.h"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -58,10 +59,24 @@ std::vector<SqliteTable> getInitialTables() {
         "session_id"
     );
 
+    SqliteTable messages(
+        "messages",
+        {
+            {"message_id", DT::INTEGER},
+            {"step", DT::INTEGER},
+            {"language_id", DT::INTEGER},
+            {"message", DT::TEXT},
+            {"adding_timestamp", DT::TEXT},
+            {"adding_datetime", DT::TEXT}
+        },
+        "message_id"
+    );
+
     tables.push_back(users);
     tables.push_back(languages);
     tables.push_back(categories);
     tables.push_back(sessions);
+    tables.push_back(messages);
 
     return tables;
 }
@@ -134,6 +149,24 @@ SqliteTable getSessionsTable() {
     return sessions;
 }
 
+SqliteTable getMessagesTable() {
+    using DT = SqliteTable::DataType;
+
+    SqliteTable messages(
+        "messages",
+        {
+            {"message_id", DT::INTEGER},
+            {"step", DT::INTEGER},
+            {"language_id", DT::INTEGER},
+            {"message", DT::TEXT},
+            {"adding_timestamp", DT::TEXT},
+            {"adding_datetime", DT::TEXT}
+        },
+        "message_id"
+    );
+    return messages;
+}
+
 bool initLanguagesTable(DatabaseManager& dbManager) {
     SqliteTable table = getLanguagesTable();
 
@@ -161,6 +194,37 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
             return false;
         }
     }
+
+    std::vector<std::string> askPhotoMessages = {
+        std::string("Пожалуйста, загрузите фотографию"),
+        std::string("Please upload a photo"),
+        std::string("Bitte laden Sie ein Foto hoch"),
+        std::string("Veuillez télécharger une photo"),
+        std::string("Por favor, sube una foto"),
+    };
+
+    int index = 0;
+
+    table = getMessagesTable();
+
+    for (const auto& message : askPhotoMessages) {
+        std::vector<SqliteTable::FieldValue> row;
+        row.push_back({{"message_id", SqliteTable::DataType::INTEGER}, index});
+        row.push_back({{"step", SqliteTable::DataType::INTEGER}, (int)BotWorkflow::WorkflowStep::STEP_ADD_PHOTO});
+        row.push_back({{"language_id", SqliteTable::DataType::INTEGER}, index});
+        row.push_back({{"message", SqliteTable::DataType::TEXT}, message});
+        long long current_timestamp = getCurrentTimestamp();
+        row.push_back({{"adding_timestamp", SqliteTable::DataType::TEXT}, std::to_string(current_timestamp)});
+        row.push_back({{"adding_datetime", SqliteTable::DataType::TEXT}, getFormatTimestampWithMilliseconds(current_timestamp)});
+
+        std::string insertSQL = table.generateInsertSQL(row, true);
+
+        if (!dbManager.executeSQL(insertSQL)) {
+            std::cerr << "Failed to insert data into messages table: " << message << std::endl;
+            return false;
+        }
+    }
+
 
     return true;
 }
