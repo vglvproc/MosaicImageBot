@@ -207,6 +207,8 @@ std::vector<std::vector<SqliteTable::FieldValue>> DatabaseManager::executeSelect
     sqlite3_stmt* stmt;
     std::vector<std::vector<SqliteTable::FieldValue>> results;
 
+    std::cout << sql << std::endl;
+
     if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
         std::cerr << "Error preparing statement: " << sqlite3_errmsg(db_) << std::endl;
         return results;

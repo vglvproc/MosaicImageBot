@@ -33,6 +33,7 @@ public:
     std::string generateInsertSQL(const std::vector<FieldValue>& row, bool doCheckExists) const;
     std::string generateUpdateSQL(const std::vector<FieldValue>& updateRow, const std::vector<FieldValue>& whereRow) const;
     std::string generateSelectAllSQL() const;
+    std::string generateSelectSQL(const std::vector<FieldValue>& selectRow, const std::vector<FieldValue>& whereRow) const;
     std::string generatePragmaTableInfoSQL() const;
     std::string generateDropTableSQL() const;
 

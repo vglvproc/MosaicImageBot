@@ -223,6 +223,7 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
             std::cerr << "Failed to insert data into messages table: " << message << std::endl;
             return false;
         }
+        index++;
     }
 
 

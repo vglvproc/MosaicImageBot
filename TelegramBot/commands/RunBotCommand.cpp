@@ -86,7 +86,24 @@ void handleLanguageSelection(TgBot::Bot& bot, TgBot::CallbackQuery::Ptr query, D
         int langIndex = std::stoi(data.substr(secondUnderscore + 1));
 
         updateSessionLanguage(dbMain, sessionId, langIndex);
-        bot.getApi().sendMessage(query->message->chat->id, "Language selected. Please add a photo.");
+
+        SqliteTable messagesTable = getMessagesTable();
+        std::vector<SqliteTable::FieldValue> messagesRow = messagesTable.getEmptyRow();
+        messagesRow[1].value = (int)BotWorkflow::WorkflowStep::STEP_ADD_PHOTO;
+        messagesRow[2].value = langIndex;
+        std::vector<SqliteTable::FieldValue> whereRow;
+        whereRow.push_back(messagesRow[1]);
+        whereRow.push_back(messagesRow[2]);
+        std::vector<SqliteTable::FieldValue> emptyRow;
+        std::string sqlCommand = messagesTable.generateSelectSQL(emptyRow, whereRow);
+        std::vector<std::vector<SqliteTable::FieldValue>> results = dbMain->executeSelectSQL(sqlCommand);
+        std::string message("Language selected. Please add a photo.");
+        if (!results.empty()) {
+            auto row = results[0];
+            message = std::get<std::string>(row[3].value);
+        }
+
+        bot.getApi().sendMessage(query->message->chat->id, message);
     }
 }
 
