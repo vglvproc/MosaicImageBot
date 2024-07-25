@@ -19,3 +19,11 @@ long long getCurrentTimestamp();
 std::string getFormatTimestampWithMilliseconds(long long timestamp);
 
 std::string getFormatTimestampWithoutMilliseconds(long long timestamp);
+
+bool downloadFile(const std::string& url, const std::string& filePath);
+
+std::string getFileExtensionFromUrl(const std::string& url);
+
+bool createDirectory(const std::string& path);
+
+std::string getCurrentWorkingDir();

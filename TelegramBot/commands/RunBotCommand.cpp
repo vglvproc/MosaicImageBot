@@ -1,8 +1,4 @@
 #include <iostream>
-#include <curl/curl.h>
-#include <fstream>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <filesystem>
 #include <tgbot/tgbot.h>
 #include "RunBotCommand.h"
@@ -28,39 +24,6 @@ bool processImageWithMetapixel(const std::string& imagePath) {
     } else {
         std::cerr << "Failed to process image with metapixel." << std::endl;
         return false;
-    }
-}
-
-bool downloadFile(const std::string& url, const std::string& filePath) {
-    std::string command = "wget -O " + filePath + " " + url;
-    int result = system(command.c_str());
-    return result == 0;
-}
-
-std::string getFileExtensionFromUrl(const std::string& url) {
-    size_t lastSlashPos = url.find_last_of('/');
-    size_t lastDotPos = url.find_last_of('.');
-
-    if (lastDotPos != std::string::npos && (lastSlashPos == std::string::npos || lastDotPos > lastSlashPos)) {
-        return url.substr(lastDotPos + 1);
-    }
-
-    return "";
-}
-
-bool createDirectory(const std::string& path) {
-    std::string command = "mkdir -p " + path;
-    int result = system(command.c_str());
-    return result == 0;
-}
-
-std::string getCurrentWorkingDir() {
-    char buffer[PATH_MAX];
-    if (getcwd(buffer, sizeof(buffer)) != nullptr) {
-        return std::string(buffer);
-    } else {
-        std::cerr << "Error getting current directory" << std::endl;
-        return "";
     }
 }
 
