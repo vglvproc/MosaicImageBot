@@ -8,7 +8,7 @@ INCLUDE_PATH := -I/usr/local/include
 LIBRARY_PATH := -L/usr/lib -L/usr/local/lib
 
 # Libraries to link
-LIBRARIES := -lTgBot -lssl -lcrypto -lsqlite3 -ldocopt
+LIBRARIES := -lTgBot -lssl -lcrypto -lsqlite3 -ldocopt -lcurl
 
 # The build target executable:
 TARGET := mosaic_image_bot

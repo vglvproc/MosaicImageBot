@@ -1,7 +1,87 @@
 #include <iostream>
+#include <curl/curl.h>
+#include <fstream>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <filesystem>
 #include <tgbot/tgbot.h>
 #include "RunBotCommand.h"
 #include "../utils/Utils.h"
+
+bool processImageWithMetapixel(const std::string& imagePath) {
+    // Путь к библиотеке изображений
+    std::string libraryPath = "/home/vadim/images/mosaic/landscapes_prepared";
+
+    // Определение пути к выходному изображению
+    std::filesystem::path inputPath(imagePath);
+    std::filesystem::path outputPath = inputPath.parent_path() / (inputPath.stem().string() + "_mosaic" + inputPath.extension().string());
+
+    // Формирование команды
+    std::string command = "metapixel --metapixel " + imagePath + " " + outputPath.string() + " --width=32 --height=32 --library=" + libraryPath;
+    std::cout << command << std::endl;
+
+    // Выполнение команды
+    int result = system(command.c_str());
+    if (result == 0) {
+        std::cout << "Image processed successfully: " << outputPath.string() << std::endl;
+        return true;
+    } else {
+        std::cerr << "Failed to process image with metapixel." << std::endl;
+        return false;
+    }
+}
+
+bool downloadFile(const std::string& url, const std::string& filePath) {
+    std::string command = "wget -O " + filePath + " " + url;
+    int result = system(command.c_str());
+    return result == 0;
+}
+
+std::string getFileExtensionFromUrl(const std::string& url) {
+    size_t lastSlashPos = url.find_last_of('/');
+    size_t lastDotPos = url.find_last_of('.');
+
+    if (lastDotPos != std::string::npos && (lastSlashPos == std::string::npos || lastDotPos > lastSlashPos)) {
+        return url.substr(lastDotPos + 1);
+    }
+
+    return "";
+}
+
+bool createDirectory(const std::string& path) {
+    std::string command = "mkdir -p " + path;
+    int result = system(command.c_str());
+    return result == 0;
+}
+
+std::string getCurrentWorkingDir() {
+    char buffer[PATH_MAX];
+    if (getcwd(buffer, sizeof(buffer)) != nullptr) {
+        return std::string(buffer);
+    } else {
+        std::cerr << "Error getting current directory" << std::endl;
+        return "";
+    }
+}
+
+std::string getSessionIdAfterPhotoUpload(DatabaseManager* dbMain, long long userId) {
+    SqliteTable sessionsTable = getSessionsTable();
+    std::vector<SqliteTable::FieldValue> sessionsRow = sessionsTable.getEmptyRow();
+    sessionsRow[1].value = std::to_string(userId);
+    sessionsRow[2].value = (int)BotWorkflow::WorkflowStep::STEP_ADD_PHOTO;
+    std::vector<SqliteTable::FieldValue> whereRow;
+    whereRow.push_back(sessionsRow[1]);
+    whereRow.push_back(sessionsRow[2]);
+    std::vector<SqliteTable::FieldValue> emptyRow;
+    std::string selectSql = sessionsTable.generateSelectSQL(emptyRow, whereRow);
+    std::vector<std::vector<SqliteTable::FieldValue>> results = dbMain->executeSelectSQL(selectSql);
+    if (!results.empty()) {
+        auto row = results[results.size() - 1];
+        return std::get<std::string>(row[0].value);
+    }
+
+    return "";
+}
 
 void updateSessionLanguage(DatabaseManager* dbMain, const std::string& sessionId, int languageIndex) {
     SqliteTable sessionsTable = getSessionsTable();
@@ -27,6 +107,51 @@ void updateSessionLanguage(DatabaseManager* dbMain, const std::string& sessionId
     } else {
         std::cerr << "Failed to update session: " << sessionId << std::endl;
     }
+}
+
+void handlePhotoUpload(TgBot::Bot& bot, TgBot::Message::Ptr message, DatabaseManager* dbMain) {
+    if (message->photo.empty()) {
+        bot.getApi().sendMessage(message->chat->id, "Please upload a photo.");
+        return;
+    }
+
+    std::string sessionId = getSessionIdAfterPhotoUpload(dbMain, message->from->id);
+    if (sessionId.empty()) {
+        bot.getApi().sendMessage(message->chat->id, "Session not found. Please start again using /start.");
+        return;
+    }
+    std::cout << "Session is found! " << sessionId << std::endl;
+
+    std::string fileId = message->photo.back()->fileId; // Get the highest resolution photo
+    TgBot::File::Ptr file = bot.getApi().getFile(fileId);
+    std::string filePath = file->filePath;
+
+    // Download the photo
+    std::ostringstream photoUrl;
+    photoUrl << "https://api.telegram.org/file/bot" << bot.getToken() << "/" << filePath;
+    std::cout << "photoUrl: " << photoUrl.str() << std::endl;
+    bot.getApi().sendMessage(message->chat->id, "Photo uploaded successfully. Please wait for result...");
+
+    if (!createDirectory(getCurrentWorkingDir() + std::string("/.temp/images/") + sessionId)) {
+        std::cerr << "Couldn't create directory " << getCurrentWorkingDir() + std::string("/.temp/images/") << std::endl;
+        return;
+    }
+
+    std::string filename = std::to_string(getCurrentTimestamp()) + "." + getFileExtensionFromUrl(photoUrl.str());
+    std::string fullImagePath = getCurrentWorkingDir() + std::string("/.temp/images/") + sessionId + "/" + filename;
+
+    if (!downloadFile(photoUrl.str(), fullImagePath)) {
+        std::cerr << "Couldn't download file " << fullImagePath << std::endl;
+        return;
+    }
+
+    if(!processImageWithMetapixel(fullImagePath)) {
+        std::cerr << "Couldn't process file " << fullImagePath << std::endl;
+    }
+    std::string mosaicImagePath = fullImagePath.substr(0, fullImagePath.find_last_of('.')) + "_mosaic." + getFileExtensionFromUrl(fullImagePath);
+    std::cout << "mosaicImagePath: " << mosaicImagePath << std::endl;
+
+    bot.getApi().sendPhoto(message->chat->id, TgBot::InputFile::fromFile(mosaicImagePath, "image/jpeg"));
 }
 
 void handleStartCommand(TgBot::Bot& bot, TgBot::Message::Ptr message, DatabaseManager* dbMain) {
@@ -125,6 +250,12 @@ bool RunBotCommand::executeCommand() {
 
     bot.getEvents().onCallbackQuery([&bot, this](TgBot::CallbackQuery::Ptr query) {
         handleLanguageSelection(bot, query, this->dbManager);
+    });
+
+    bot.getEvents().onAnyMessage([&bot, this](TgBot::Message::Ptr message) {
+        if (message->photo.size() > 0) {
+            handlePhotoUpload(bot, message, this->dbManager);
+        }
     });
 
     try {
