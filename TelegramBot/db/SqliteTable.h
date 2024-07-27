@@ -34,6 +34,7 @@ public:
     std::string generateUpdateSQL(const std::vector<FieldValue>& updateRow, const std::vector<FieldValue>& whereRow) const;
     std::string generateSelectAllSQL() const;
     std::string generateSelectSQL(const std::vector<FieldValue>& selectRow, const std::vector<FieldValue>& whereRow) const;
+    std::string generateDeleteSQL(const std::vector<FieldValue>& whereRow) const;
     std::string generatePragmaTableInfoSQL() const;
     std::string generateDropTableSQL() const;
 
