@@ -63,7 +63,7 @@ std::vector<SqliteTable> getInitialTables() {
         "messages",
         {
             {"message_id", DT::INTEGER},
-            {"step", DT::INTEGER},
+            {"message_type", DT::INTEGER},
             {"language_id", DT::INTEGER},
             {"message", DT::TEXT},
             {"adding_timestamp", DT::TEXT},
@@ -156,7 +156,7 @@ SqliteTable getMessagesTable() {
         "messages",
         {
             {"message_id", DT::INTEGER},
-            {"step", DT::INTEGER},
+            {"message_type", DT::INTEGER},
             {"language_id", DT::INTEGER},
             {"message", DT::TEXT},
             {"adding_timestamp", DT::TEXT},
@@ -210,7 +210,7 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
     for (const auto& message : askPhotoMessages) {
         std::vector<SqliteTable::FieldValue> row;
         row.push_back({{"message_id", SqliteTable::DataType::INTEGER}, index});
-        row.push_back({{"step", SqliteTable::DataType::INTEGER}, (int)BotWorkflow::WorkflowStep::STEP_ADD_PHOTO});
+        row.push_back({{"message_type", SqliteTable::DataType::INTEGER}, (int)BotWorkflow::WorkflowMessage::STEP_ADD_PHOTO_MESSAGE});
         row.push_back({{"language_id", SqliteTable::DataType::INTEGER}, index});
         row.push_back({{"message", SqliteTable::DataType::TEXT}, message});
         long long current_timestamp = getCurrentTimestamp();

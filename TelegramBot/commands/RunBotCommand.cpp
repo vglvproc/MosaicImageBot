@@ -177,7 +177,7 @@ void handleLanguageSelection(TgBot::Bot& bot, TgBot::CallbackQuery::Ptr query, D
 
         SqliteTable messagesTable = getMessagesTable();
         std::vector<SqliteTable::FieldValue> messagesRow = messagesTable.getEmptyRow();
-        messagesRow[1].value = (int)BotWorkflow::WorkflowStep::STEP_ADD_PHOTO;
+        messagesRow[1].value = (int)BotWorkflow::WorkflowMessage::STEP_ADD_PHOTO_MESSAGE;
         messagesRow[2].value = langIndex;
         std::vector<SqliteTable::FieldValue> whereRow;
         whereRow.push_back(messagesRow[1]);
