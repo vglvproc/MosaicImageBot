@@ -8,6 +8,8 @@
 #include "commands/AddCategoryCommand.h"
 #include "commands/RemoveCategoryCommand.h"
 #include "commands/AddImagesToCategoryCommand.h"
+#include "commands/AddNoAdsUserCommand.h"
+#include "commands/AddUnlimitedAccessUserCommand.h"
 #include "commands/GetAvailableLangsCommand.h"
 #include "db/SqliteTable.h"
 #include "db/InitialEntities.h"
@@ -22,6 +24,8 @@ Usage:
   MosaicImageBot add-category <category_name>
   MosaicImageBot remove-category <category_name>
   MosaicImageBot add-images-to-category <category_name> <path_to_images>
+  MosaicImageBot add-no-ads-user <user_id>
+  MosaicImageBot add-unlimited-access-user <user_id>
   MosaicImageBot get-available-langs
   MosaicImageBot (-h | --help)
   MosaicImageBot --version
@@ -64,6 +68,12 @@ std::unique_ptr<Command> parseCommandLine(int argc, const char** argv) {
             std::string category_name = args["<category_name>"].asString();
             std::string path_to_images = args["<path_to_images>"].asString();
             return std::make_unique<AddImagesToCategoryCommand>(category_name, path_to_images);
+        } else if (args["add-no-ads-user"].asBool()) {
+            std::string user_id = args["<user_id>"].asString();
+            return std::make_unique<AddNoAdsUserCommand>(user_id);
+        } else if (args["add-unlimited-access-user"].asBool()) {
+            std::string user_id = args["<user_id>"].asString();
+            return std::make_unique<AddUnlimitedAccessUserCommand>(user_id);
         } else if (args["get-available-langs"].asBool()) {
             return std::make_unique<GetAvailableLangsCommand>();
         } else if (args["run"].asBool()) {
@@ -124,6 +134,16 @@ int main(int argc, const char** argv) {
         std::cout << "This is a AddImagesToCategoryCommand." << std::endl;
         AddImagesToCategoryCommand* cmd = dynamic_cast<AddImagesToCategoryCommand*>(command.get());
         std::cout << "category_name: " << cmd->getCategoryName() <<  "; path_to_images: " << cmd->getPathToImages() << std::endl;
+        return 0;
+    } else if (dynamic_cast<AddNoAdsUserCommand*>(command.get())) {
+        AddNoAdsUserCommand* cmd = dynamic_cast<AddNoAdsUserCommand*>(command.get());
+        cmd->setDatabaseManager(&dbMain);
+        cmd->executeCommand();
+        return 0;
+    } else if (dynamic_cast<AddUnlimitedAccessUserCommand*>(command.get())) {
+        AddUnlimitedAccessUserCommand* cmd = dynamic_cast<AddUnlimitedAccessUserCommand*>(command.get());
+        cmd->setDatabaseManager(&dbMain);
+        cmd->executeCommand();
         return 0;
     } else if (dynamic_cast<GetAvailableLangsCommand*>(command.get())) {
         GetAvailableLangsCommand* cmd = dynamic_cast<GetAvailableLangsCommand*>(command.get());

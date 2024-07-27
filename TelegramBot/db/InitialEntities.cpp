@@ -72,11 +72,33 @@ std::vector<SqliteTable> getInitialTables() {
         "message_id"
     );
 
+    SqliteTable no_ads_users(
+        "no_ads_users",
+        {
+            {"user_id", DT::TEXT},
+            {"adding_timestamp", DT::TEXT},
+            {"adding_datetime", DT::TEXT}
+        },
+        "user_id"
+    );
+
+    SqliteTable unlimited_access_users(
+        "unlimited_access_users",
+        {
+            {"user_id", DT::TEXT},
+            {"adding_timestamp", DT::TEXT},
+            {"adding_datetime", DT::TEXT}
+        },
+        "user_id"
+    );
+
     tables.push_back(users);
     tables.push_back(languages);
     tables.push_back(categories);
     tables.push_back(sessions);
     tables.push_back(messages);
+    tables.push_back(no_ads_users);
+    tables.push_back(unlimited_access_users);
 
     return tables;
 }
@@ -165,6 +187,36 @@ SqliteTable getMessagesTable() {
         "message_id"
     );
     return messages;
+}
+
+SqliteTable getNoAdsUsersTable() {
+    using DT = SqliteTable::DataType;
+
+    SqliteTable no_ads_users(
+        "no_ads_users",
+        {
+            {"user_id", DT::TEXT},
+            {"adding_timestamp", DT::TEXT},
+            {"adding_datetime", DT::TEXT}
+        },
+        "user_id"
+    );
+    return no_ads_users;
+}
+
+SqliteTable getUnlimitedAccessUsersTable() {
+    using DT = SqliteTable::DataType;
+
+    SqliteTable unlimited_access_users(
+        "unlimited_access_users",
+        {
+            {"user_id", DT::TEXT},
+            {"adding_timestamp", DT::TEXT},
+            {"adding_datetime", DT::TEXT}
+        },
+        "user_id"
+    );
+    return unlimited_access_users;
 }
 
 bool initLanguagesTable(DatabaseManager& dbManager) {

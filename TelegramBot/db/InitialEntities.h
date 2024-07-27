@@ -15,4 +15,8 @@ SqliteTable getSessionsTable();
 
 SqliteTable getMessagesTable();
 
+SqliteTable getNoAdsUsersTable();
+
+SqliteTable getUnlimitedAccessUsersTable();
+
 bool initLanguagesTable(DatabaseManager& dbManager);
