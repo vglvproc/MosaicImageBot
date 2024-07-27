@@ -9,7 +9,9 @@
 #include "commands/RemoveCategoryCommand.h"
 #include "commands/AddImagesToCategoryCommand.h"
 #include "commands/AddNoAdsUserCommand.h"
+#include "commands/RemoveNoAdsUserCommand.h"
 #include "commands/AddUnlimitedAccessUserCommand.h"
+#include "commands/RemoveUnlimitedAccessUserCommand.h"
 #include "commands/GetAvailableLangsCommand.h"
 #include "db/SqliteTable.h"
 #include "db/InitialEntities.h"
@@ -25,7 +27,9 @@ Usage:
   MosaicImageBot remove-category <category_name>
   MosaicImageBot add-images-to-category <category_name> <path_to_images>
   MosaicImageBot add-no-ads-user <user_id>
+  MosaicImageBot remove-no-ads-user <user_id>
   MosaicImageBot add-unlimited-access-user <user_id>
+  MosaicImageBot remove-unlimited-access-user <user_id>
   MosaicImageBot get-available-langs
   MosaicImageBot (-h | --help)
   MosaicImageBot --version
@@ -71,9 +75,15 @@ std::unique_ptr<Command> parseCommandLine(int argc, const char** argv) {
         } else if (args["add-no-ads-user"].asBool()) {
             std::string user_id = args["<user_id>"].asString();
             return std::make_unique<AddNoAdsUserCommand>(user_id);
+        } else if (args["remove-no-ads-user"].asBool()) {
+            std::string user_id = args["<user_id>"].asString();
+            return std::make_unique<RemoveNoAdsUserCommand>(user_id);
         } else if (args["add-unlimited-access-user"].asBool()) {
             std::string user_id = args["<user_id>"].asString();
             return std::make_unique<AddUnlimitedAccessUserCommand>(user_id);
+        } else if (args["remove-unlimited-access-user"].asBool()) {
+            std::string user_id = args["<user_id>"].asString();
+            return std::make_unique<RemoveUnlimitedAccessUserCommand>(user_id);
         } else if (args["get-available-langs"].asBool()) {
             return std::make_unique<GetAvailableLangsCommand>();
         } else if (args["run"].asBool()) {
@@ -140,8 +150,18 @@ int main(int argc, const char** argv) {
         cmd->setDatabaseManager(&dbMain);
         cmd->executeCommand();
         return 0;
+    } else if (dynamic_cast<RemoveNoAdsUserCommand*>(command.get())) {
+        RemoveNoAdsUserCommand* cmd = dynamic_cast<RemoveNoAdsUserCommand*>(command.get());
+        cmd->setDatabaseManager(&dbMain);
+        cmd->executeCommand();
+        return 0;
     } else if (dynamic_cast<AddUnlimitedAccessUserCommand*>(command.get())) {
         AddUnlimitedAccessUserCommand* cmd = dynamic_cast<AddUnlimitedAccessUserCommand*>(command.get());
+        cmd->setDatabaseManager(&dbMain);
+        cmd->executeCommand();
+        return 0;
+    } else if (dynamic_cast<RemoveUnlimitedAccessUserCommand*>(command.get())) {
+        RemoveUnlimitedAccessUserCommand* cmd = dynamic_cast<RemoveUnlimitedAccessUserCommand*>(command.get());
         cmd->setDatabaseManager(&dbMain);
         cmd->executeCommand();
         return 0;

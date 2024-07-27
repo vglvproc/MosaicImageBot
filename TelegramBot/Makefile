@@ -25,6 +25,8 @@ SOURCES := main.cpp \
            commands/AddUnlimitedAccessUserCommand.cpp \
            commands/GetAvailableLangsCommand.cpp \
            commands/RemoveCategoryCommand.cpp \
+           commands/RemoveNoAdsUserCommand.cpp \
+           commands/RemoveUnlimitedAccessUserCommand.cpp \
            commands/RunBotCommand.cpp
 
 all: $(TARGET)
