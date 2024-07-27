@@ -4,6 +4,38 @@
 #include "RunBotCommand.h"
 #include "../utils/Utils.h"
 
+bool checkNoAdsForUser(DatabaseManager* dbMain, const std::string& userId) {
+    SqliteTable noAdsUsersTable = getNoAdsUsersTable();
+    std::vector<SqliteTable::FieldValue> row = noAdsUsersTable.getEmptyRow();
+    row[0].value = userId;
+    std::vector<SqliteTable::FieldValue> whereRow;
+    whereRow.push_back(row[0]);
+    std::vector<SqliteTable::FieldValue> emptyRow;
+    std::string selectSql = noAdsUsersTable.generateSelectSQL(emptyRow, whereRow);
+    std::vector<std::vector<SqliteTable::FieldValue>> results = dbMain->executeSelectSQL(selectSql);
+    if (!results.empty()) {
+        return true;
+    }
+
+    return false;
+}
+
+bool checkUnlimitedAccessForUser(DatabaseManager* dbMain, const std::string& userId) {
+    SqliteTable unlimitedAccessUsersTable = getUnlimitedAccessUsersTable();
+    std::vector<SqliteTable::FieldValue> row = unlimitedAccessUsersTable.getEmptyRow();
+    row[0].value = userId;
+    std::vector<SqliteTable::FieldValue> whereRow;
+    whereRow.push_back(row[0]);
+    std::vector<SqliteTable::FieldValue> emptyRow;
+    std::string selectSql = unlimitedAccessUsersTable.generateSelectSQL(emptyRow, whereRow);
+    std::vector<std::vector<SqliteTable::FieldValue>> results = dbMain->executeSelectSQL(selectSql);
+    if (!results.empty()) {
+        return true;
+    }
+
+    return false;
+}
+
 bool processImageWithMetapixel(const std::string& imagePath) {
     // Путь к библиотеке изображений
     std::string libraryPath = "/home/vadim/images/mosaic/landscapes_prepared";
