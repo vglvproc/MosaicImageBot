@@ -22,7 +22,7 @@ R"(MosaicImageBot.
 
 Usage:
   MosaicImageBot
-  MosaicImageBot run
+  MosaicImageBot run [--duplicate-data=<user_id>]
   MosaicImageBot add-category <category_name>
   MosaicImageBot remove-category <category_name>
   MosaicImageBot add-images-to-category <category_name> <path_to_images>
@@ -87,7 +87,13 @@ std::unique_ptr<Command> parseCommandLine(int argc, const char** argv) {
         } else if (args["get-available-langs"].asBool()) {
             return std::make_unique<GetAvailableLangsCommand>();
         } else if (args["run"].asBool()) {
-            return std::make_unique<RunBotCommand>();
+            std::unique_ptr<RunBotCommand> runBotCommand = std::make_unique<RunBotCommand>();
+            if (args["--duplicate-data"]) {
+                std::string userId = args["--duplicate-data"].asString();
+                runBotCommand->setDuplicateDataToUser(true);
+                runBotCommand->setUserIdToDuplicate(userId);
+            }
+            return runBotCommand;
         } else {
             std::cout << USAGE;
             exit(0);

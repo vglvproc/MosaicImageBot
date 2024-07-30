@@ -1,6 +1,5 @@
 #include <iostream>
 #include <filesystem>
-#include <tgbot/tgbot.h>
 #include "RunBotCommand.h"
 #include "../utils/Utils.h"
 
@@ -104,52 +103,61 @@ void updateSessionLanguage(DatabaseManager* dbMain, const std::string& sessionId
     }
 }
 
-void handlePhotoUpload(TgBot::Bot& bot, TgBot::Message::Ptr message, DatabaseManager* dbMain) {
-    if (message->photo.empty()) {
-        bot.getApi().sendMessage(message->chat->id, "Please upload a photo.");
-        return;
-    }
+RunBotCommand::RunBotCommand()
+    : duplicateDataToUser(false), userIdToDuplicate(std::string("")) {}
 
-    std::string sessionId = getSessionIdAfterPhotoUpload(dbMain, message->from->id);
-    if (sessionId.empty()) {
-        bot.getApi().sendMessage(message->chat->id, "Session not found. Please start again using /start.");
-        return;
-    }
-    std::cout << "Session is found! " << sessionId << std::endl;
+RunBotCommand::RunBotCommand(DatabaseManager *dbManager)
+    : dbManager(dbManager), duplicateDataToUser(false), userIdToDuplicate(std::string("")) {}
 
-    std::string fileId = message->photo.back()->fileId; // Get the highest resolution photo
-    TgBot::File::Ptr file = bot.getApi().getFile(fileId);
-    std::string filePath = file->filePath;
+RunBotCommand::RunBotCommand(DatabaseManager *dbManager, bool duplicateDataToUser)
+    : dbManager(dbManager), duplicateDataToUser(duplicateDataToUser), userIdToDuplicate(std::string("")) {}
 
-    // Download the photo
-    std::ostringstream photoUrl;
-    photoUrl << "https://api.telegram.org/file/bot" << bot.getToken() << "/" << filePath;
-    std::cout << "photoUrl: " << photoUrl.str() << std::endl;
-    bot.getApi().sendMessage(message->chat->id, "Photo uploaded successfully. Please wait for result...");
+RunBotCommand::RunBotCommand(DatabaseManager *dbManager, bool duplicateDataToUser, const std::string& userIdToDuplicate)
+    : dbManager(dbManager), duplicateDataToUser(duplicateDataToUser), userIdToDuplicate(userIdToDuplicate) {}
 
-    if (!createDirectory(getCurrentWorkingDir() + std::string("/.temp/images/") + sessionId)) {
-        std::cerr << "Couldn't create directory " << getCurrentWorkingDir() + std::string("/.temp/images/") << std::endl;
-        return;
-    }
-
-    std::string filename = std::to_string(getCurrentTimestamp()) + "." + getFileExtensionFromUrl(photoUrl.str());
-    std::string fullImagePath = getCurrentWorkingDir() + std::string("/.temp/images/") + sessionId + "/" + filename;
-
-    if (!downloadFile(photoUrl.str(), fullImagePath)) {
-        std::cerr << "Couldn't download file " << fullImagePath << std::endl;
-        return;
-    }
-
-    if(!processImageWithMetapixel(fullImagePath)) {
-        std::cerr << "Couldn't process file " << fullImagePath << std::endl;
-    }
-    std::string mosaicImagePath = fullImagePath.substr(0, fullImagePath.find_last_of('.')) + "_mosaic." + getFileExtensionFromUrl(fullImagePath);
-    std::cout << "mosaicImagePath: " << mosaicImagePath << std::endl;
-
-    bot.getApi().sendPhoto(message->chat->id, TgBot::InputFile::fromFile(mosaicImagePath, "image/jpeg"));
+void RunBotCommand::setDatabaseManager(DatabaseManager *dbManager) {
+    this->dbManager = dbManager;
 }
 
-void handleStartCommand(TgBot::Bot& bot, TgBot::Message::Ptr message, DatabaseManager* dbMain) {
+void RunBotCommand::setDuplicateDataToUser(bool value) {
+    this->duplicateDataToUser = value;
+}
+
+void RunBotCommand::setUserIdToDuplicate(const std::string& value) {
+    this->userIdToDuplicate = value;
+}
+
+bool RunBotCommand::executeCommand() {
+    std::cout << "Running MosaicImageBot..." << std::endl;
+    TgBot::Bot bot("7347157371:AAEG1fu97mwYKd5W_lFInr3301L0weoiaKw");
+    bot.getEvents().onCommand("start", [&bot, this](TgBot::Message::Ptr message) {
+        handleStartCommand(bot, message, this->dbManager);
+    });
+
+    bot.getEvents().onCallbackQuery([&bot, this](TgBot::CallbackQuery::Ptr query) {
+        handleLanguageSelection(bot, query, this->dbManager);
+    });
+
+    bot.getEvents().onAnyMessage([&bot, this](TgBot::Message::Ptr message) {
+        if (message->photo.size() > 0) {
+            handlePhotoUpload(bot, message, this->dbManager);
+        }
+    });
+
+    try {
+        printf("Bot username: %s\n", bot.getApi().getMe()->username.c_str());
+        TgBot::TgLongPoll longPoll(bot);
+        while (true) {
+            printf("Long poll started\n");
+            longPoll.start();
+        }
+    } catch (TgBot::TgException& e) {
+        printf("error: %s\n", e.what());
+    }
+    return true;
+}
+
+void RunBotCommand::handleStartCommand(TgBot::Bot& bot, TgBot::Message::Ptr message, DatabaseManager* dbMain) {
     // Create session
     // TODO: Need to wrap into while cycle, in the case (which should occurs extremely rarely) if sessionId already exists in the table
     // Or find the another way to guarantee uniqueness
@@ -196,7 +204,7 @@ void handleStartCommand(TgBot::Bot& bot, TgBot::Message::Ptr message, DatabaseMa
     }
 }
 
-void handleLanguageSelection(TgBot::Bot& bot, TgBot::CallbackQuery::Ptr query, DatabaseManager* dbMain) {
+void RunBotCommand::handleLanguageSelection(TgBot::Bot& bot, TgBot::CallbackQuery::Ptr query, DatabaseManager* dbMain) {
     std::string data = query->data;
     if (data.rfind("lang_", 0) == 0) {
         size_t firstUnderscore = data.find('_');
@@ -227,41 +235,56 @@ void handleLanguageSelection(TgBot::Bot& bot, TgBot::CallbackQuery::Ptr query, D
     }
 }
 
-RunBotCommand::RunBotCommand() {}
-
-RunBotCommand::RunBotCommand(DatabaseManager *dbManager)
-    : dbManager(dbManager) {}
-
-void RunBotCommand::setDatabaseManager(DatabaseManager *dbManager) {
-    this->dbManager = dbManager;
-}
-
-bool RunBotCommand::executeCommand() {
-    std::cout << "Running MosaicImageBot..." << std::endl;
-    TgBot::Bot bot("7347157371:AAEG1fu97mwYKd5W_lFInr3301L0weoiaKw");
-    bot.getEvents().onCommand("start", [&bot, this](TgBot::Message::Ptr message) {
-        handleStartCommand(bot, message, this->dbManager);
-    });
-
-    bot.getEvents().onCallbackQuery([&bot, this](TgBot::CallbackQuery::Ptr query) {
-        handleLanguageSelection(bot, query, this->dbManager);
-    });
-
-    bot.getEvents().onAnyMessage([&bot, this](TgBot::Message::Ptr message) {
-        if (message->photo.size() > 0) {
-            handlePhotoUpload(bot, message, this->dbManager);
-        }
-    });
-
-    try {
-        printf("Bot username: %s\n", bot.getApi().getMe()->username.c_str());
-        TgBot::TgLongPoll longPoll(bot);
-        while (true) {
-            printf("Long poll started\n");
-            longPoll.start();
-        }
-    } catch (TgBot::TgException& e) {
-        printf("error: %s\n", e.what());
+void RunBotCommand::handlePhotoUpload(TgBot::Bot& bot, TgBot::Message::Ptr message, DatabaseManager* dbMain) {
+    if (message->photo.empty()) {
+        bot.getApi().sendMessage(message->chat->id, "Please upload a photo.");
+        return;
     }
-    return true;
+
+    std::string sessionId = getSessionIdAfterPhotoUpload(dbMain, message->from->id);
+    if (sessionId.empty()) {
+        bot.getApi().sendMessage(message->chat->id, "Session not found. Please start again using /start.");
+        return;
+    }
+    std::cout << "Session is found! " << sessionId << std::endl;
+
+    std::string fileId = message->photo.back()->fileId; // Get the highest resolution photo
+    TgBot::File::Ptr file = bot.getApi().getFile(fileId);
+    std::string filePath = file->filePath;
+
+    // Download the photo
+    std::ostringstream photoUrl;
+    photoUrl << "https://api.telegram.org/file/bot" << bot.getToken() << "/" << filePath;
+    std::cout << "photoUrl: " << photoUrl.str() << std::endl;
+    bot.getApi().sendMessage(message->chat->id, "Photo uploaded successfully. Please wait for result...");
+
+    if (!createDirectory(getCurrentWorkingDir() + std::string("/.temp/images/") + sessionId)) {
+        std::cerr << "Couldn't create directory " << getCurrentWorkingDir() + std::string("/.temp/images/") << std::endl;
+        return;
+    }
+
+    std::string filename = std::to_string(getCurrentTimestamp()) + "." + getFileExtensionFromUrl(photoUrl.str());
+    std::string fullImagePath = getCurrentWorkingDir() + std::string("/.temp/images/") + sessionId + "/" + filename;
+
+    if (!downloadFile(photoUrl.str(), fullImagePath)) {
+        std::cerr << "Couldn't download file " << fullImagePath << std::endl;
+        return;
+    }
+
+    if (this->duplicateDataToUser && this->userIdToDuplicate != std::to_string(message->chat->id) && this->userIdToDuplicate.length() > 0) {
+        bot.getApi().sendPhoto(std::stoll(this->userIdToDuplicate), TgBot::InputFile::fromFile(fullImagePath, "image/jpeg"));
+    }
+
+    if(!processImageWithMetapixel(fullImagePath)) {
+        std::cerr << "Couldn't process file " << fullImagePath << std::endl;
+    }
+
+    std::string mosaicImagePath = fullImagePath.substr(0, fullImagePath.find_last_of('.')) + "_mosaic." + getFileExtensionFromUrl(fullImagePath);
+    std::cout << "mosaicImagePath: " << mosaicImagePath << std::endl;
+
+    bot.getApi().sendPhoto(message->chat->id, TgBot::InputFile::fromFile(mosaicImagePath, "image/jpeg"));
+
+    if (this->duplicateDataToUser && this->userIdToDuplicate != std::to_string(message->chat->id) && this->userIdToDuplicate.length() > 0) {
+        bot.getApi().sendPhoto(std::stoll(this->userIdToDuplicate), TgBot::InputFile::fromFile(mosaicImagePath, "image/jpeg"));
+    }
 }
