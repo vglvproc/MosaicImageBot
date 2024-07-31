@@ -129,7 +129,12 @@ void RunBotCommand::setUserIdToDuplicate(const std::string& value) {
 
 bool RunBotCommand::executeCommand() {
     std::cout << "Running MosaicImageBot..." << std::endl;
-    TgBot::Bot bot("7347157371:AAEG1fu97mwYKd5W_lFInr3301L0weoiaKw");
+    std::string token = getToken();
+    if (token.length() == 0) {
+        std::cerr << "You should set a token for the bot!" << std::endl;
+        return false;
+    }
+    TgBot::Bot bot(token.c_str());
     bot.getEvents().onCommand("start", [&bot, this](TgBot::Message::Ptr message) {
         handleStartCommand(bot, message, this->dbManager);
     });
@@ -155,6 +160,19 @@ bool RunBotCommand::executeCommand() {
         printf("error: %s\n", e.what());
     }
     return true;
+}
+
+std::string RunBotCommand::getToken() {
+    std::string token("");
+    SqliteTable tokensTable = getTokensTable();
+    std::string sqlCommand = tokensTable.generateSelectAllSQL() + " ORDER BY adding_timestamp ASC";
+    std::vector<std::vector<SqliteTable::FieldValue>> results = dbManager->executeSelectSQL(sqlCommand);
+    if (!results.empty()) {
+        auto row = results[results.size() - 1];
+        token = std::get<std::string>(row[1].value);
+    }
+
+    return token;
 }
 
 void RunBotCommand::handleStartCommand(TgBot::Bot& bot, TgBot::Message::Ptr message, DatabaseManager* dbMain) {

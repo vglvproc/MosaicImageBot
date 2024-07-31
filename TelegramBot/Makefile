@@ -24,10 +24,12 @@ SOURCES := main.cpp \
            commands/AddNoAdsUserCommand.cpp \
            commands/AddUnlimitedAccessUserCommand.cpp \
            commands/GetAvailableLangsCommand.cpp \
+           commands/GetTokenCommand.cpp \
            commands/RemoveCategoryCommand.cpp \
            commands/RemoveNoAdsUserCommand.cpp \
            commands/RemoveUnlimitedAccessUserCommand.cpp \
-           commands/RunBotCommand.cpp
+           commands/RunBotCommand.cpp \
+           commands/SetTokenCommand.cpp
 
 all: $(TARGET)
 

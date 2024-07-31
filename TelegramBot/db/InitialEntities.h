@@ -19,4 +19,6 @@ SqliteTable getNoAdsUsersTable();
 
 SqliteTable getUnlimitedAccessUsersTable();
 
+SqliteTable getTokensTable();
+
 bool initLanguagesTable(DatabaseManager& dbManager);

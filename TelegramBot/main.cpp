@@ -13,6 +13,8 @@
 #include "commands/AddUnlimitedAccessUserCommand.h"
 #include "commands/RemoveUnlimitedAccessUserCommand.h"
 #include "commands/GetAvailableLangsCommand.h"
+#include "commands/SetTokenCommand.h"
+#include "commands/GetTokenCommand.h"
 #include "db/SqliteTable.h"
 #include "db/InitialEntities.h"
 #include "db/DatabaseManager.h"
@@ -23,6 +25,8 @@ R"(MosaicImageBot.
 Usage:
   MosaicImageBot
   MosaicImageBot run [--duplicate-data=<user_id>]
+  MosaicImageBot set-token <token>
+  MosaicImageBot get-token
   MosaicImageBot add-category <category_name>
   MosaicImageBot remove-category <category_name>
   MosaicImageBot add-images-to-category <category_name> <path_to_images>
@@ -62,7 +66,12 @@ std::unique_ptr<Command> parseCommandLine(int argc, const char** argv) {
                                                                    {argv + 1, argv + argc},
                                                                    true, // show help if requested
                                                                    "MosaicImageBot 1.0");
-        if (args["add-category"].asBool()) {
+        if (args["set-token"].asBool()) {
+            std::string token = args["<token>"].asString();
+            return std::make_unique<SetTokenCommand>(token);
+        } else if (args["get-token"].asBool()) {
+            return std::make_unique<GetTokenCommand>();
+        } else if (args["add-category"].asBool()) {
             std::string category_name = args["<category_name>"].asString();
             return std::make_unique<AddCategoryCommand>(category_name);
         } else if (args["remove-category"].asBool()) {
@@ -130,7 +139,28 @@ int main(int argc, const char** argv) {
         return 1;
     }
 
-    if (dynamic_cast<AddCategoryCommand*>(command.get())) {
+    if (dynamic_cast<SetTokenCommand*>(command.get())) {
+        SetTokenCommand* cmd = dynamic_cast<SetTokenCommand*>(command.get());
+        cmd->setDatabaseManager(&dbMain);
+        bool result = cmd->executeCommand();
+        if (result) {
+            std::cout << "Successfully set bot token \"" << cmd->getToken() << "\"" << std::endl;
+        } else {
+            std::cout << "Failed to set bot token \"" << cmd->getToken() << "\"" << std::endl;
+        }
+        return 0;
+    } else if (dynamic_cast<GetTokenCommand*>(command.get())) {
+        GetTokenCommand* cmd = dynamic_cast<GetTokenCommand*>(command.get());
+        cmd->setDatabaseManager(&dbMain);
+        bool result = false;
+        std::string token = cmd->executeCommand(&result);
+        if (result) {
+            std::cout << "Current bot token is: " << token << std::endl;
+        } else {
+            std::cout << "Failed to get bot token from database" << std::endl;
+        }
+        return 0;
+    } else if (dynamic_cast<AddCategoryCommand*>(command.get())) {
         std::cout << "This is a AddCategoryCommand." << std::endl;
         AddCategoryCommand* cmd = dynamic_cast<AddCategoryCommand*>(command.get());
         cmd->setDatabaseManager(&dbMain);
@@ -179,8 +209,8 @@ int main(int argc, const char** argv) {
     } else if (dynamic_cast<RunBotCommand*>(command.get())) {
         RunBotCommand* cmd = dynamic_cast<RunBotCommand*>(command.get());
         cmd->setDatabaseManager(&dbMain);
-        cmd->executeCommand();
-        return 0;
+        bool res = cmd->executeCommand();
+        return res ? 0 : 1;
     } else {
         std::cout << "Unknown command." << std::endl;
     }
