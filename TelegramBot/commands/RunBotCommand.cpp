@@ -216,7 +216,7 @@ void RunBotCommand::handleStartCommand(TgBot::Bot& bot, TgBot::Message::Ptr mess
             rowButton.push_back(button);
             keyboard->inlineKeyboard.push_back(rowButton);
         }
-        bot.getApi().sendMessage(message->chat->id, "Please select the language:", false, 0, keyboard);
+        bot.getApi().sendMessage(message->chat->id, "Please select the language:", nullptr, nullptr, keyboard);
     } else {
         std::cout << "Languages list is empty." << std::endl; // TODO: Need to be handled
     }
