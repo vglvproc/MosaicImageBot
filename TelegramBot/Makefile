@@ -29,6 +29,7 @@ SOURCES := main.cpp \
            commands/RemoveNoAdsUserCommand.cpp \
            commands/RemoveUnlimitedAccessUserCommand.cpp \
            commands/RunBotCommand.cpp \
+           commands/SetCategoryCaptionCommand.cpp \
            commands/SetTokenCommand.cpp
 
 all: $(TARGET)

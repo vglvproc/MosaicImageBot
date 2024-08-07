@@ -11,6 +11,8 @@ SqliteTable getLanguagesTable();
 
 SqliteTable getCategoriesTable();
 
+SqliteTable getCaptionsTable();
+
 SqliteTable getSessionsTable();
 
 SqliteTable getMessagesTable();

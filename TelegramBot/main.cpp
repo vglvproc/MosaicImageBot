@@ -15,6 +15,7 @@
 #include "commands/GetAvailableLangsCommand.h"
 #include "commands/SetTokenCommand.h"
 #include "commands/GetTokenCommand.h"
+#include "commands/SetCategoryCaptionCommand.h"
 #include "db/SqliteTable.h"
 #include "db/InitialEntities.h"
 #include "db/DatabaseManager.h"
@@ -30,6 +31,7 @@ Usage:
   MosaicImageBot add-category <category_name>
   MosaicImageBot remove-category <category_name>
   MosaicImageBot add-images-to-category <category_name> <path_to_images>
+  MosaicImageBot set-category-caption <category_name> --caption=<caption> --lang=<lang_id>
   MosaicImageBot add-no-ads-user <user_id>
   MosaicImageBot remove-no-ads-user <user_id>
   MosaicImageBot add-unlimited-access-user <user_id>
@@ -81,6 +83,11 @@ std::unique_ptr<Command> parseCommandLine(int argc, const char** argv) {
             std::string category_name = args["<category_name>"].asString();
             std::string path_to_images = args["<path_to_images>"].asString();
             return std::make_unique<AddImagesToCategoryCommand>(category_name, path_to_images);
+        } else if (args["set-category-caption"].asBool()) {
+            std::string category_name = args["<category_name>"].asString();
+            std::string caption = args["--caption"].asString();
+            int lang_id = args["--lang"].asLong();
+            return std::make_unique<SetCategoryCaptionCommand>(category_name, caption, lang_id);
         } else if (args["add-no-ads-user"].asBool()) {
             std::string user_id = args["<user_id>"].asString();
             return std::make_unique<AddNoAdsUserCommand>(user_id);
@@ -180,6 +187,18 @@ int main(int argc, const char** argv) {
         std::cout << "This is a AddImagesToCategoryCommand." << std::endl;
         AddImagesToCategoryCommand* cmd = dynamic_cast<AddImagesToCategoryCommand*>(command.get());
         std::cout << "category_name: " << cmd->getCategoryName() <<  "; path_to_images: " << cmd->getPathToImages() << std::endl;
+        return 0;
+    } else if (dynamic_cast<SetCategoryCaptionCommand*>(command.get())) {
+        SetCategoryCaptionCommand* cmd = dynamic_cast<SetCategoryCaptionCommand*>(command.get());
+        cmd->setDatabaseManager(&dbMain);
+        bool result = cmd->executeCommand();
+        if (result) {
+            std::cout << "Successfully added caption \"" << cmd->getCaption() << "\" for category \"" << cmd->getCategoryName()
+                      << "\" and language with ID " << cmd->getLangId() << " into database." << std::endl;
+        } else {
+            std::cout << "Failed to add caption \"" << cmd->getCaption() << "\" for category \"" << cmd->getCategoryName()
+                      << "\" and language with ID " << cmd->getLangId() << " into database." << std::endl;
+        }
         return 0;
     } else if (dynamic_cast<AddNoAdsUserCommand*>(command.get())) {
         AddNoAdsUserCommand* cmd = dynamic_cast<AddNoAdsUserCommand*>(command.get());
