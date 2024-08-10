@@ -78,7 +78,7 @@ std::vector<SqliteTable> getInitialTables() {
             {"user_id", DT::TEXT},
             {"current_step", DT::INTEGER},
             {"selected_language_id", DT::INTEGER},
-            {"selected_caption_id", DT::TEXT},
+            {"selected_category_id", DT::INTEGER},
             {"selected_size", DT::INTEGER},
             {"adding_timestamp", DT::TEXT},
             {"adding_datetime", DT::TEXT}
@@ -239,7 +239,7 @@ SqliteTable getSessionsTable() {
             {"user_id", DT::TEXT},
             {"current_step", DT::INTEGER},
             {"selected_language_id", DT::INTEGER},
-            {"selected_caption_id", DT::TEXT},
+            {"selected_category_id", DT::INTEGER},
             {"selected_size", DT::INTEGER},
             {"adding_timestamp", DT::TEXT},
             {"adding_datetime", DT::TEXT}
@@ -389,6 +389,38 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
         std::vector<SqliteTable::FieldValue> row;
         row.push_back({{"message_id", SqliteTable::DataType::INTEGER}, total_index++});
         row.push_back({{"message_type", SqliteTable::DataType::INTEGER}, (int)BotWorkflow::WorkflowMessage::CAPTION_ANTI_MOSAIC});
+        row.push_back({{"language_id", SqliteTable::DataType::INTEGER}, index});
+        row.push_back({{"message", SqliteTable::DataType::TEXT}, message});
+        long long current_timestamp = getCurrentTimestamp();
+        row.push_back({{"adding_timestamp", SqliteTable::DataType::TEXT}, std::to_string(current_timestamp)});
+        row.push_back({{"adding_datetime", SqliteTable::DataType::TEXT}, getFormatTimestampWithMilliseconds(current_timestamp)});
+
+        std::string insertSQL = table.generateInsertSQL(row, true);
+        std::cout << insertSQL << std::endl;
+
+        if (!dbManager.executeSQL(insertSQL)) {
+            std::cerr << "Failed to insert data into messages table: " << message << std::endl;
+            return false;
+        }
+        index++;
+    }
+
+    std::vector<std::string> selectSizeMessages = {
+        std::string("Пожалуйста, выберите размер плитки"),
+        std::string("Please select the size of the tile"),
+        std::string("Bitte wählen Sie die Größe der Kachel"),
+        std::string("Veuillez choisir la taille de la tuile"),
+        std::string("Por favor, seleccione el tamaño de la baldosa"),
+    };
+
+    index = 1;
+
+    table = getMessagesTable();
+
+    for (const auto& message : selectSizeMessages) {
+        std::vector<SqliteTable::FieldValue> row;
+        row.push_back({{"message_id", SqliteTable::DataType::INTEGER}, total_index++});
+        row.push_back({{"message_type", SqliteTable::DataType::INTEGER}, (int)BotWorkflow::WorkflowMessage::STEP_SELECT_SIZE});
         row.push_back({{"language_id", SqliteTable::DataType::INTEGER}, index});
         row.push_back({{"message", SqliteTable::DataType::TEXT}, message});
         long long current_timestamp = getCurrentTimestamp();

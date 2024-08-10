@@ -105,7 +105,7 @@ std::string getSessionIdAfterPhotoUpload(DatabaseManager* dbMain, long long user
     SqliteTable sessionsTable = getSessionsTable();
     std::vector<SqliteTable::FieldValue> sessionsRow = sessionsTable.getEmptyRow();
     sessionsRow[1].value = std::to_string(userId);
-    sessionsRow[2].value = (int)BotWorkflow::WorkflowStep::STEP_ADD_PHOTO;
+    sessionsRow[2].value = (int)BotWorkflow::WorkflowMessage::STEP_ADD_PHOTO_MESSAGE;
     std::vector<SqliteTable::FieldValue> whereRow;
     whereRow.push_back(sessionsRow[1]);
     whereRow.push_back(sessionsRow[2]);
@@ -124,13 +124,38 @@ void updateSessionLanguage(DatabaseManager* dbMain, const std::string& sessionId
     SqliteTable sessionsTable = getSessionsTable();
 
     // Create update row
-    BotWorkflow::WorkflowStep currentStep = BotWorkflow::WorkflowStep::STEP_ADD_PHOTO;
+    BotWorkflow::WorkflowMessage currentStep = BotWorkflow::WorkflowMessage::STEP_SELECT_THEME_MESSAGE;
     std::vector<SqliteTable::FieldValue> sessionsRow = sessionsTable.getEmptyRow();
     sessionsRow[2].value = (int)currentStep;
     sessionsRow[3].value = languageIndex;
     std::vector<SqliteTable::FieldValue> updateRow;
     updateRow.push_back(sessionsRow[2]);
     updateRow.push_back(sessionsRow[3]);
+
+    // Create where clause row
+    sessionsRow[0].value = sessionId;
+    std::vector<SqliteTable::FieldValue> whereRow;
+    whereRow.push_back(sessionsRow[0]);
+
+    std::string updateSql = sessionsTable.generateUpdateSQL(updateRow, whereRow);
+    std::cout << "UPDATE SQL: " << updateSql << std::endl;
+    if (dbMain->executeSQL(updateSql)) {
+        std::cout << "Successfully updated sessionId: " << sessionId << std::endl;
+    } else {
+        std::cerr << "Failed to update session: " << sessionId << std::endl;
+    }
+}
+
+void updateSessionTheme(DatabaseManager* dbMain, const std::string& sessionId, int themeIndex) {
+    SqliteTable sessionsTable = getSessionsTable();
+
+    BotWorkflow::WorkflowMessage currentStep = BotWorkflow::WorkflowMessage::STEP_SELECT_SIZE;
+    std::vector<SqliteTable::FieldValue> sessionsRow = sessionsTable.getEmptyRow();
+    sessionsRow[2].value = (int)currentStep;
+    sessionsRow[4].value = themeIndex;
+    std::vector<SqliteTable::FieldValue> updateRow;
+    updateRow.push_back(sessionsRow[2]);
+    updateRow.push_back(sessionsRow[4]);
 
     // Create where clause row
     sessionsRow[0].value = sessionId;
@@ -227,13 +252,13 @@ void RunBotCommand::handleStartCommand(TgBot::Bot& bot, TgBot::Message::Ptr mess
     std::string sessionId = getRandomHexValue(32);
     long long userId = message->from->id;
     long long timestamp = getCurrentTimestamp();
-    BotWorkflow::WorkflowStep currentStep = BotWorkflow::WorkflowStep::STEP_SELECT_LANGUAGE;
+    BotWorkflow::WorkflowMessage currentStep = BotWorkflow::WorkflowMessage::STEP_SELECT_LANGUAGE;
 
     row[0].value = sessionId;
     row[1].value = std::to_string(userId);
     row[2].value = (int)currentStep;
     row[3].value = -1;
-    row[4].value = "";
+    row[4].value = -1;
     row[5].value = -1;
     row[6].value = std::to_string(timestamp);
     row[7].value = getFormatTimestampWithMilliseconds(timestamp);
@@ -326,6 +351,81 @@ void RunBotCommand::handleButtonClicked(TgBot::Bot& bot, TgBot::CallbackQuery::P
         } else {
             std::cout << "Captions list is empty." << std::endl; // TODO: Need to be handled
         }
+    } else if (data.rfind("theme_", 0) == 0) {
+        size_t firstUnderscore = data.find('_');
+        size_t secondUnderscore = data.find('_', firstUnderscore + 1);
+        size_t thirdUnderscore = data.find('_', secondUnderscore + 1);
+
+        std::string sessionId = data.substr(firstUnderscore + 1, secondUnderscore - firstUnderscore - 1);
+        int langIndex = std::stoi(data.substr(secondUnderscore + 1, thirdUnderscore - secondUnderscore - 1));
+        int themeIndex = std::stoi(data.substr(thirdUnderscore + 1));
+
+        updateSessionTheme(dbMain, sessionId, themeIndex);
+
+        bool getMessage = false;
+        std::string selectSizeMessage = getMessageByTypeAndLang(dbMain, BotWorkflow::WorkflowMessage::STEP_SELECT_SIZE, langIndex, &getMessage);
+        if (!getMessage) {
+            selectSizeMessage = "Please select the size of the tile";
+        }
+        TgBot::InlineKeyboardMarkup::Ptr keyboard(new TgBot::InlineKeyboardMarkup());
+
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_8;
+        TgBot::InlineKeyboardButton::Ptr button_8(new TgBot::InlineKeyboardButton());
+        button_8->text = "8x8";
+        button_8->callbackData = "size_" + sessionId + "_" + std::to_string(langIndex) + "_8";
+        rowButton_8.push_back(button_8);
+        keyboard->inlineKeyboard.push_back(rowButton_8);
+
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_12;
+        TgBot::InlineKeyboardButton::Ptr button_12(new TgBot::InlineKeyboardButton());
+        button_12->text = "12x12";
+        button_12->callbackData = "size_" + sessionId + "_" + std::to_string(langIndex) + "_12";
+        rowButton_12.push_back(button_12);
+        keyboard->inlineKeyboard.push_back(rowButton_12);
+
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_16;
+        TgBot::InlineKeyboardButton::Ptr button_16(new TgBot::InlineKeyboardButton());
+        button_16->text = "16x16";
+        button_16->callbackData = "size_" + sessionId + "_" + std::to_string(langIndex) + "_16";
+        rowButton_16.push_back(button_16);
+        keyboard->inlineKeyboard.push_back(rowButton_16);
+
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_20;
+        TgBot::InlineKeyboardButton::Ptr button_20(new TgBot::InlineKeyboardButton());
+        button_20->text = "20x20";
+        button_20->callbackData = "size_" + sessionId + "_" + std::to_string(langIndex) + "_20";
+        rowButton_20.push_back(button_20);
+        keyboard->inlineKeyboard.push_back(rowButton_20);
+
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_24;
+        TgBot::InlineKeyboardButton::Ptr button_24(new TgBot::InlineKeyboardButton());
+        button_24->text = "24x24";
+        button_24->callbackData = "size_" + sessionId + "_" + std::to_string(langIndex) + "_24";
+        rowButton_24.push_back(button_24);
+        keyboard->inlineKeyboard.push_back(rowButton_24);
+
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_28;
+        TgBot::InlineKeyboardButton::Ptr button_28(new TgBot::InlineKeyboardButton());
+        button_28->text = "28x28";
+        button_28->callbackData = "size_" + sessionId + "_" + std::to_string(langIndex) + "_28";
+        rowButton_28.push_back(button_28);
+        keyboard->inlineKeyboard.push_back(rowButton_28);
+
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_32;
+        TgBot::InlineKeyboardButton::Ptr button_32(new TgBot::InlineKeyboardButton());
+        button_32->text = "32x32";
+        button_32->callbackData = "size_" + sessionId + "_" + std::to_string(langIndex) + "_32";
+        rowButton_32.push_back(button_32);
+        keyboard->inlineKeyboard.push_back(rowButton_32);
+
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_64;
+        TgBot::InlineKeyboardButton::Ptr button_64(new TgBot::InlineKeyboardButton());
+        button_64->text = "64x64";
+        button_64->callbackData = "size_" + sessionId + "_" + std::to_string(langIndex) + "_64";
+        rowButton_64.push_back(button_64);
+        keyboard->inlineKeyboard.push_back(rowButton_64);
+
+        bot.getApi().sendMessage(query->message->chat->id, selectSizeMessage, nullptr, nullptr, keyboard);
     }
 }
 
