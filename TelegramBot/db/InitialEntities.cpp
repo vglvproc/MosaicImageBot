@@ -36,7 +36,7 @@ std::vector<SqliteTable> getInitialTables() {
         "language_id"
     );
 
-    SqliteTable categories(
+    SqliteTable categories( // TODO: добавить category_id (INTEGER)
         "categories",
         {
             {"category_name", DT::TEXT},
@@ -78,6 +78,8 @@ std::vector<SqliteTable> getInitialTables() {
             {"user_id", DT::TEXT},
             {"current_step", DT::INTEGER},
             {"selected_language_id", DT::INTEGER},
+            {"selected_caption_id", DT::TEXT},
+            {"selected_size", DT::INTEGER},
             {"adding_timestamp", DT::TEXT},
             {"adding_datetime", DT::TEXT}
         },
@@ -237,6 +239,8 @@ SqliteTable getSessionsTable() {
             {"user_id", DT::TEXT},
             {"current_step", DT::INTEGER},
             {"selected_language_id", DT::INTEGER},
+            {"selected_caption_id", DT::TEXT},
+            {"selected_size", DT::INTEGER},
             {"adding_timestamp", DT::TEXT},
             {"adding_datetime", DT::TEXT}
         },
@@ -337,22 +341,23 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
         }
     }
 
-    std::vector<std::string> askPhotoMessages = {
-        std::string("Пожалуйста, загрузите фотографию"),
-        std::string("Please upload a photo"),
-        std::string("Bitte laden Sie ein Foto hoch"),
-        std::string("Veuillez télécharger une photo"),
-        std::string("Por favor, sube una foto"),
+    std::vector<std::string> selectThemeMessages = {
+        std::string("Пожалуйста, выберите тему картинок, из которых будет составляться мозаика"),
+        std::string("Please select the theme of the images that will be used to create the mosaic"),
+        std::string("Bitte wählen Sie das Thema der Bilder aus, aus denen das Mosaik erstellt wird"),
+        std::string("Veuillez choisir le thème des images qui seront utilisées pour créer la mosaïque"),
+        std::string("Por favor, seleccione el tema de las imágenes que se utilizarán para crear el mosaico"),
     };
 
-    int index = 0;
+    int total_index = 0;
+    int index = 1;
 
     table = getMessagesTable();
 
-    for (const auto& message : askPhotoMessages) {
+    for (const auto& message : selectThemeMessages) {
         std::vector<SqliteTable::FieldValue> row;
-        row.push_back({{"message_id", SqliteTable::DataType::INTEGER}, index});
-        row.push_back({{"message_type", SqliteTable::DataType::INTEGER}, (int)BotWorkflow::WorkflowMessage::STEP_ADD_PHOTO_MESSAGE});
+        row.push_back({{"message_id", SqliteTable::DataType::INTEGER}, total_index++});
+        row.push_back({{"message_type", SqliteTable::DataType::INTEGER}, (int)BotWorkflow::WorkflowMessage::STEP_SELECT_THEME_MESSAGE});
         row.push_back({{"language_id", SqliteTable::DataType::INTEGER}, index});
         row.push_back({{"message", SqliteTable::DataType::TEXT}, message});
         long long current_timestamp = getCurrentTimestamp();
@@ -368,6 +373,68 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
         index++;
     }
 
+    std::vector<std::string> antimosaicMessages = {
+        std::string("Анти-мозаика"),
+        std::string("Anti-mosaic"),
+        std::string("Anti-Mosaik"),
+        std::string("Anti-mosaïque"),
+        std::string("Anti-mosaico"),
+    };
+
+    index = 1;
+
+    table = getMessagesTable();
+
+    for (const auto& message : antimosaicMessages) {
+        std::vector<SqliteTable::FieldValue> row;
+        row.push_back({{"message_id", SqliteTable::DataType::INTEGER}, total_index++});
+        row.push_back({{"message_type", SqliteTable::DataType::INTEGER}, (int)BotWorkflow::WorkflowMessage::CAPTION_ANTI_MOSAIC});
+        row.push_back({{"language_id", SqliteTable::DataType::INTEGER}, index});
+        row.push_back({{"message", SqliteTable::DataType::TEXT}, message});
+        long long current_timestamp = getCurrentTimestamp();
+        row.push_back({{"adding_timestamp", SqliteTable::DataType::TEXT}, std::to_string(current_timestamp)});
+        row.push_back({{"adding_datetime", SqliteTable::DataType::TEXT}, getFormatTimestampWithMilliseconds(current_timestamp)});
+
+        std::string insertSQL = table.generateInsertSQL(row, true);
+        std::cout << insertSQL << std::endl;
+
+        if (!dbManager.executeSQL(insertSQL)) {
+            std::cerr << "Failed to insert data into messages table: " << message << std::endl;
+            return false;
+        }
+        index++;
+    }
+
+    std::vector<std::string> askPhotoMessages = {
+        std::string("Пожалуйста, загрузите фотографию"),
+        std::string("Please upload a photo"),
+        std::string("Bitte laden Sie ein Foto hoch"),
+        std::string("Veuillez télécharger une photo"),
+        std::string("Por favor, sube una foto"),
+    };
+
+    index = 1;
+
+    table = getMessagesTable();
+
+    for (const auto& message : askPhotoMessages) {
+        std::vector<SqliteTable::FieldValue> row;
+        row.push_back({{"message_id", SqliteTable::DataType::INTEGER}, total_index++});
+        row.push_back({{"message_type", SqliteTable::DataType::INTEGER}, (int)BotWorkflow::WorkflowMessage::STEP_ADD_PHOTO_MESSAGE});
+        row.push_back({{"language_id", SqliteTable::DataType::INTEGER}, index});
+        row.push_back({{"message", SqliteTable::DataType::TEXT}, message});
+        long long current_timestamp = getCurrentTimestamp();
+        row.push_back({{"adding_timestamp", SqliteTable::DataType::TEXT}, std::to_string(current_timestamp)});
+        row.push_back({{"adding_datetime", SqliteTable::DataType::TEXT}, getFormatTimestampWithMilliseconds(current_timestamp)});
+
+        std::string insertSQL = table.generateInsertSQL(row, true);
+
+        if (!dbManager.executeSQL(insertSQL)) {
+            std::cerr << "Failed to insert data into messages table: " << message << std::endl;
+            return false;
+        }
+        index++;
+    }
 
     return true;
 }

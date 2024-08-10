@@ -2,6 +2,49 @@
 #include <filesystem>
 #include "RunBotCommand.h"
 #include "../utils/Utils.h"
+#include "../workflow/BotWorkflow.h"
+
+std::string getMessageByTypeAndLang(DatabaseManager* dbMain, BotWorkflow::WorkflowMessage msg_type, int lang_id, bool* msg_found) {
+    SqliteTable messagesTable = getMessagesTable();
+    std::vector<SqliteTable::FieldValue> row = messagesTable.getEmptyRow();
+    row[1].value = (int)msg_type;
+    row[2].value = lang_id;
+    std::vector<SqliteTable::FieldValue> whereRow;
+    whereRow.push_back(row[1]);
+    whereRow.push_back(row[2]);
+    std::vector<SqliteTable::FieldValue> emptyRow;
+    std::string selectSql = messagesTable.generateSelectSQL(emptyRow, whereRow);
+    auto results = dbMain->executeSelectSQL(selectSql);
+    if (!results.empty()) {
+        *msg_found = true;
+        auto row = results[0];
+        return std::get<std::string>(row[3].value);
+    } else {
+        *msg_found = false;
+        return std::string("");
+    }
+}
+
+std::pair<std::string, std::string> getIdAndCaptionByCategoryAndLang(DatabaseManager* dbMain, const std::string& category_name, int lang_id, bool* caption_found) {
+    SqliteTable captionsTable = getCaptionsTable();
+    std::vector<SqliteTable::FieldValue> row = captionsTable.getEmptyRow();
+    row[1].value = category_name;
+    row[2].value = lang_id;
+    std::vector<SqliteTable::FieldValue> whereRow;
+    whereRow.push_back(row[1]);
+    whereRow.push_back(row[2]);
+    std::vector<SqliteTable::FieldValue> emptyRow;
+    std::string selectSql = captionsTable.generateSelectSQL(emptyRow, whereRow);
+    auto results = dbMain->executeSelectSQL(selectSql);
+    if (!results.empty()) {
+        *caption_found = true;
+        auto row = results[0];
+        return std::make_pair(std::get<std::string>(row[0].value), std::get<std::string>(row[3].value));
+    } else {
+        *caption_found = false;
+        return std::make_pair(std::string(""), std::string(""));
+    }
+}
 
 bool checkNoAdsForUser(DatabaseManager* dbMain, const std::string& userId) {
     SqliteTable noAdsUsersTable = getNoAdsUsersTable();
@@ -140,7 +183,7 @@ bool RunBotCommand::executeCommand() {
     });
 
     bot.getEvents().onCallbackQuery([&bot, this](TgBot::CallbackQuery::Ptr query) {
-        handleLanguageSelection(bot, query, this->dbManager);
+        handleButtonClicked(bot, query, this->dbManager);
     });
 
     bot.getEvents().onAnyMessage([&bot, this](TgBot::Message::Ptr message) {
@@ -190,8 +233,10 @@ void RunBotCommand::handleStartCommand(TgBot::Bot& bot, TgBot::Message::Ptr mess
     row[1].value = std::to_string(userId);
     row[2].value = (int)currentStep;
     row[3].value = -1;
-    row[4].value = std::to_string(timestamp);
-    row[5].value = getFormatTimestampWithMilliseconds(timestamp);
+    row[4].value = "";
+    row[5].value = -1;
+    row[6].value = std::to_string(timestamp);
+    row[7].value = getFormatTimestampWithMilliseconds(timestamp);
 
     std::string insertSql = sessionsTable.generateInsertSQL(row, true);
     printf("INSERT SQL: %s\n", insertSql.c_str());
@@ -211,8 +256,9 @@ void RunBotCommand::handleStartCommand(TgBot::Bot& bot, TgBot::Message::Ptr mess
         for (const auto& row : results) {
             std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton;
             TgBot::InlineKeyboardButton::Ptr button(new TgBot::InlineKeyboardButton());
+            int langIndex = std::get<int>(row[0].value);
             button->text = std::get<std::string>(row[1].value) + " " + std::get<std::string>(row[2].value);
-            button->callbackData = "lang_" + sessionId + "_" + std::to_string(index++);
+            button->callbackData = "lang_" + sessionId + "_" + std::to_string(langIndex);
             rowButton.push_back(button);
             keyboard->inlineKeyboard.push_back(rowButton);
         }
@@ -222,7 +268,7 @@ void RunBotCommand::handleStartCommand(TgBot::Bot& bot, TgBot::Message::Ptr mess
     }
 }
 
-void RunBotCommand::handleLanguageSelection(TgBot::Bot& bot, TgBot::CallbackQuery::Ptr query, DatabaseManager* dbMain) {
+void RunBotCommand::handleButtonClicked(TgBot::Bot& bot, TgBot::CallbackQuery::Ptr query, DatabaseManager* dbMain) {
     std::string data = query->data;
     if (data.rfind("lang_", 0) == 0) {
         size_t firstUnderscore = data.find('_');
@@ -233,23 +279,53 @@ void RunBotCommand::handleLanguageSelection(TgBot::Bot& bot, TgBot::CallbackQuer
 
         updateSessionLanguage(dbMain, sessionId, langIndex);
 
-        SqliteTable messagesTable = getMessagesTable();
-        std::vector<SqliteTable::FieldValue> messagesRow = messagesTable.getEmptyRow();
-        messagesRow[1].value = (int)BotWorkflow::WorkflowMessage::STEP_ADD_PHOTO_MESSAGE;
-        messagesRow[2].value = langIndex;
-        std::vector<SqliteTable::FieldValue> whereRow;
-        whereRow.push_back(messagesRow[1]);
-        whereRow.push_back(messagesRow[2]);
-        std::vector<SqliteTable::FieldValue> emptyRow;
-        std::string sqlCommand = messagesTable.generateSelectSQL(emptyRow, whereRow);
-        std::vector<std::vector<SqliteTable::FieldValue>> results = dbMain->executeSelectSQL(sqlCommand);
-        std::string message("Language selected. Please add a photo.");
-        if (!results.empty()) {
-            auto row = results[0];
-            message = std::get<std::string>(row[3].value);
+        bool getMessage = false;
+        std::string selectThemeMessage = getMessageByTypeAndLang(dbMain, BotWorkflow::WorkflowMessage::STEP_SELECT_THEME_MESSAGE, langIndex, &getMessage);
+        if (!getMessage) {
+            selectThemeMessage = "Please select the theme of the images that will be used to create the mosaic";
         }
 
-        bot.getApi().sendMessage(query->message->chat->id, message);
+        TgBot::InlineKeyboardMarkup::Ptr keyboard(new TgBot::InlineKeyboardMarkup());
+        SqliteTable categoriesTable = getCategoriesTable();
+        std::string sqlCommand = categoriesTable.generateSelectAllSQL();
+        auto results = dbMain->executeSelectSQL(sqlCommand);
+        if (!results.empty()) {
+            int index = 1;
+            for (const auto& row : results) {
+                std::string category = std::get<std::string>(row[0].value);
+                std::string caption_id("");
+                std::string caption("");
+                bool caption_found = false;
+                std::pair<std::string, std::string> result = getIdAndCaptionByCategoryAndLang(dbMain, category, langIndex, &caption_found);
+                if (!caption_found) {
+                    caption_id = std::to_string(index);
+                    caption = category;
+                } else {
+                    caption_id = result.first;
+                    caption = result.second;
+                }
+                std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton;
+                TgBot::InlineKeyboardButton::Ptr button(new TgBot::InlineKeyboardButton());
+                button->text = caption;
+                button->callbackData = "theme_" + sessionId + "_" + std::to_string(langIndex) + "_" + std::to_string(index);
+                rowButton.push_back(button);
+                keyboard->inlineKeyboard.push_back(rowButton);
+                index++;
+            }
+            std::string antimosaic_caption = getMessageByTypeAndLang(dbMain, BotWorkflow::WorkflowMessage::CAPTION_ANTI_MOSAIC, langIndex, &getMessage);
+            if (!getMessage) {
+                antimosaic_caption = "Anti-mosaic";
+            }
+            std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton;
+            TgBot::InlineKeyboardButton::Ptr button(new TgBot::InlineKeyboardButton());
+            button->text = antimosaic_caption;
+            button->callbackData = "theme_" + sessionId + "_" + std::to_string(langIndex) + "_0";
+            rowButton.push_back(button);
+            keyboard->inlineKeyboard.push_back(rowButton);
+            bot.getApi().sendMessage(query->message->chat->id, selectThemeMessage, nullptr, nullptr, keyboard);
+        } else {
+            std::cout << "Captions list is empty." << std::endl; // TODO: Need to be handled
+        }
     }
 }
 

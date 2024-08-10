@@ -20,7 +20,7 @@ public:
 private:
     std::string getToken();
     void handleStartCommand(TgBot::Bot& bot, TgBot::Message::Ptr message, DatabaseManager* dbMain); // TODO: убрать аргумент dbMain, так как функция сейчас является частью класса с доступом к соответствующему полю
-    void handleLanguageSelection(TgBot::Bot& bot, TgBot::CallbackQuery::Ptr query, DatabaseManager* dbMain);
+    void handleButtonClicked(TgBot::Bot& bot, TgBot::CallbackQuery::Ptr query, DatabaseManager* dbMain);
     void handlePhotoUpload(TgBot::Bot& bot, TgBot::Message::Ptr message, DatabaseManager* dbMain);
     DatabaseManager *dbManager;
     bool duplicateDataToUser;
