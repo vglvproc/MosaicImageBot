@@ -59,6 +59,18 @@ std::vector<SqliteTable> getInitialTables() {
         "caption_id"
     );
 
+    SqliteTable category_paths(
+        "category_paths",
+        {
+            {"id", DT::TEXT},
+            {"category_name", DT::TEXT},
+            {"category_path", DT::TEXT},
+            {"adding_timestamp", DT::TEXT},
+            {"adding_datetime", DT::TEXT}
+        },
+        "id"
+    );
+
     SqliteTable sessions(
         "sessions",
         {
@@ -120,6 +132,7 @@ std::vector<SqliteTable> getInitialTables() {
     tables.push_back(languages);
     tables.push_back(categories);
     tables.push_back(captions);
+    tables.push_back(category_paths);
     tables.push_back(sessions);
     tables.push_back(messages);
     tables.push_back(no_ads_users);
@@ -195,6 +208,23 @@ SqliteTable getCaptionsTable() {
         "caption_id"
     );
     return captions;
+}
+
+SqliteTable getCategoryPathsTable() {
+    using DT = SqliteTable::DataType;
+
+    SqliteTable category_paths(
+        "category_paths",
+        {
+            {"id", DT::TEXT},
+            {"category_name", DT::TEXT},
+            {"category_path", DT::TEXT},
+            {"adding_timestamp", DT::TEXT},
+            {"adding_datetime", DT::TEXT}
+        },
+        "id"
+    );
+    return category_paths;
 }
 
 SqliteTable getSessionsTable() {

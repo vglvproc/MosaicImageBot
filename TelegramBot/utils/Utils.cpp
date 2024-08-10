@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <unistd.h>
 #include <limits.h>
+#include <sys/stat.h>
 
 std::string getRandomHexValue_16() {
     return getRandomHexValue(16);
@@ -138,4 +139,9 @@ std::string getCurrentWorkingDir() {
         std::cerr << "Error getting current directory" << std::endl;
         return "";
     }
+}
+
+bool doesPathExist(const std::string& path) {
+    struct stat info;
+    return stat(path.c_str(), &info) == 0;
 }

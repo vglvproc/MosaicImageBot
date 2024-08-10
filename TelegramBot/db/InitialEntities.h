@@ -13,6 +13,8 @@ SqliteTable getCategoriesTable();
 
 SqliteTable getCaptionsTable();
 
+SqliteTable getCategoryPathsTable();
+
 SqliteTable getSessionsTable();
 
 SqliteTable getMessagesTable();

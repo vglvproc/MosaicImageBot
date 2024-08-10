@@ -27,3 +27,5 @@ std::string getFileExtensionFromUrl(const std::string& url);
 bool createDirectory(const std::string& path);
 
 std::string getCurrentWorkingDir();
+
+bool doesPathExist(const std::string& path);

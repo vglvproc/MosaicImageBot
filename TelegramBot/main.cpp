@@ -82,6 +82,10 @@ std::unique_ptr<Command> parseCommandLine(int argc, const char** argv) {
         } else if (args["add-images-to-category"].asBool()) {
             std::string category_name = args["<category_name>"].asString();
             std::string path_to_images = args["<path_to_images>"].asString();
+            if (!doesPathExist(path_to_images)) {
+                std::cerr << "Path \"" << path_to_images << "\" does not exist in the system!" << std::endl;
+                exit(0);
+            }
             return std::make_unique<AddImagesToCategoryCommand>(category_name, path_to_images);
         } else if (args["set-category-caption"].asBool()) {
             std::string category_name = args["<category_name>"].asString();
@@ -184,9 +188,16 @@ int main(int argc, const char** argv) {
         std::cout << "category_name: " << cmd->getCategoryName() << std::endl;
         return 0;
     } else if (dynamic_cast<AddImagesToCategoryCommand*>(command.get())) {
-        std::cout << "This is a AddImagesToCategoryCommand." << std::endl;
         AddImagesToCategoryCommand* cmd = dynamic_cast<AddImagesToCategoryCommand*>(command.get());
-        std::cout << "category_name: " << cmd->getCategoryName() <<  "; path_to_images: " << cmd->getPathToImages() << std::endl;
+        cmd->setDatabaseManager(&dbMain);
+        bool result = cmd->executeCommand();
+        if (result) {
+            std::cout << "Successfully set path \"" << cmd->getPathToImages() << "\" for category \"" << cmd->getCategoryName()
+                      << "\" into database" << std::endl;
+        } else {
+            std::cout << "Failed to set path \"" << cmd->getPathToImages() << "\" for category \"" << cmd->getCategoryName()
+                      << "\" into database" << std::endl;
+        }
         return 0;
     } else if (dynamic_cast<SetCategoryCaptionCommand*>(command.get())) {
         SetCategoryCaptionCommand* cmd = dynamic_cast<SetCategoryCaptionCommand*>(command.get());
