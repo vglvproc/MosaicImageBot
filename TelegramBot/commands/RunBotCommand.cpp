@@ -484,6 +484,7 @@ void RunBotCommand::handlePhotoUpload(TgBot::Bot& bot, TgBot::Message::Ptr messa
     }
     std::cout << "Session is found! " << sessionId << std::endl;
 
+    int lang_id = -1;
     int category_id;
     std::string category_name("");
     std::string category_path("");
@@ -501,6 +502,7 @@ void RunBotCommand::handlePhotoUpload(TgBot::Bot& bot, TgBot::Message::Ptr messa
         auto results = dbMain->executeSelectSQL(selectSql);
         if (!results.empty()) {
             auto row = results[0];
+            lang_id = std::get<int>(row[3].value);
             category_id = std::get<int>(row[4].value);
             size = std::get<int>(row[5].value);
         }
@@ -549,7 +551,13 @@ void RunBotCommand::handlePhotoUpload(TgBot::Bot& bot, TgBot::Message::Ptr messa
     std::ostringstream photoUrl;
     photoUrl << "https://api.telegram.org/file/bot" << bot.getToken() << "/" << filePath;
     std::cout << "photoUrl: " << photoUrl.str() << std::endl;
-    bot.getApi().sendMessage(message->chat->id, "Photo uploaded successfully. Please wait for result...");
+
+    bool getMessage = false;
+    std::string waitForResultMessage = getMessageByTypeAndLang(dbMain, BotWorkflow::WorkflowMessage::STEP_WAITING_FOR_RESULT_MESSAGE, lang_id, &getMessage);
+    if (!getMessage) {
+        waitForResultMessage = "Photo uploaded successfully. Please wait for result...";
+    }
+    bot.getApi().sendMessage(message->chat->id, waitForResultMessage);
 
     if (!createDirectory(getCurrentWorkingDir() + std::string("/.temp/images/") + sessionId)) {
         std::cerr << "Couldn't create directory " << getCurrentWorkingDir() + std::string("/.temp/images/") << std::endl;

@@ -383,8 +383,6 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
 
     index = 1;
 
-    table = getMessagesTable();
-
     for (const auto& message : antimosaicMessages) {
         std::vector<SqliteTable::FieldValue> row;
         row.push_back({{"message_id", SqliteTable::DataType::INTEGER}, total_index++});
@@ -414,8 +412,6 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
     };
 
     index = 1;
-
-    table = getMessagesTable();
 
     for (const auto& message : selectSizeMessages) {
         std::vector<SqliteTable::FieldValue> row;
@@ -447,12 +443,39 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
 
     index = 1;
 
-    table = getMessagesTable();
-
     for (const auto& message : askPhotoMessages) {
         std::vector<SqliteTable::FieldValue> row;
         row.push_back({{"message_id", SqliteTable::DataType::INTEGER}, total_index++});
         row.push_back({{"message_type", SqliteTable::DataType::INTEGER}, (int)BotWorkflow::WorkflowMessage::STEP_ADD_PHOTO_MESSAGE});
+        row.push_back({{"language_id", SqliteTable::DataType::INTEGER}, index});
+        row.push_back({{"message", SqliteTable::DataType::TEXT}, message});
+        long long current_timestamp = getCurrentTimestamp();
+        row.push_back({{"adding_timestamp", SqliteTable::DataType::TEXT}, std::to_string(current_timestamp)});
+        row.push_back({{"adding_datetime", SqliteTable::DataType::TEXT}, getFormatTimestampWithMilliseconds(current_timestamp)});
+
+        std::string insertSQL = table.generateInsertSQL(row, true);
+
+        if (!dbManager.executeSQL(insertSQL)) {
+            std::cerr << "Failed to insert data into messages table: " << message << std::endl;
+            return false;
+        }
+        index++;
+    }
+
+    std::vector<std::string> waitResultMessages = {
+        std::string("Фото успешно загружено. Ждите результат..."),
+        std::string("Photo uploaded successfully. Please wait for result..."),
+        std::string("Foto erfolgreich hochgeladen. Bitte warten Sie auf das Ergebnis..."),
+        std::string("Photo téléchargée avec succès. Veuillez attendre le résultat..."),
+        std::string("Foto subida con éxito. Por favor, espere el resultado..."),
+    };
+
+    index = 1;
+
+    for (const auto& message : waitResultMessages) {
+        std::vector<SqliteTable::FieldValue> row;
+        row.push_back({{"message_id", SqliteTable::DataType::INTEGER}, total_index++});
+        row.push_back({{"message_type", SqliteTable::DataType::INTEGER}, (int)BotWorkflow::WorkflowMessage::STEP_WAITING_FOR_RESULT_MESSAGE});
         row.push_back({{"language_id", SqliteTable::DataType::INTEGER}, index});
         row.push_back({{"message", SqliteTable::DataType::TEXT}, message});
         long long current_timestamp = getCurrentTimestamp();
