@@ -78,19 +78,19 @@ bool checkUnlimitedAccessForUser(DatabaseManager* dbMain, const std::string& use
     return false;
 }
 
-bool processImageWithMetapixel(const std::string& imagePath) {
-    // Путь к библиотеке изображений
-    std::string libraryPath = "/home/vadim/images/mosaic/landscapes_prepared";
-
-    // Определение пути к выходному изображению
+bool processImageWithMetapixel(const std::string& imagePath, const std::string libraryPath, int size, bool antimosaic) {
     std::filesystem::path inputPath(imagePath);
     std::filesystem::path outputPath = inputPath.parent_path() / (inputPath.stem().string() + "_mosaic" + inputPath.extension().string());
 
-    // Формирование команды
-    std::string command = "metapixel --metapixel " + imagePath + " " + outputPath.string() + " --width=32 --height=32 --library=" + libraryPath;
+    std::string command = "metapixel --metapixel " + imagePath + " " + outputPath.string() + " --width=" + std::to_string(size)
+                        + " --height=" + std::to_string(size);  + " --library=" + libraryPath;
+    if (antimosaic) {
+        command = command + " --antimosaic=\"" + imagePath + "\"";
+    } else {
+        command = command + + " --library=\"" + libraryPath + "\"";
+    }
     std::cout << command << std::endl;
 
-    // Выполнение команды
     int result = system(command.c_str());
     if (result == 0) {
         std::cout << "Image processed successfully: " << outputPath.string() << std::endl;
@@ -156,6 +156,31 @@ void updateSessionTheme(DatabaseManager* dbMain, const std::string& sessionId, i
     std::vector<SqliteTable::FieldValue> updateRow;
     updateRow.push_back(sessionsRow[2]);
     updateRow.push_back(sessionsRow[4]);
+
+    // Create where clause row
+    sessionsRow[0].value = sessionId;
+    std::vector<SqliteTable::FieldValue> whereRow;
+    whereRow.push_back(sessionsRow[0]);
+
+    std::string updateSql = sessionsTable.generateUpdateSQL(updateRow, whereRow);
+    std::cout << "UPDATE SQL: " << updateSql << std::endl;
+    if (dbMain->executeSQL(updateSql)) {
+        std::cout << "Successfully updated sessionId: " << sessionId << std::endl;
+    } else {
+        std::cerr << "Failed to update session: " << sessionId << std::endl;
+    }
+}
+
+void updateSessionSize(DatabaseManager* dbMain, const std::string& sessionId, int size) {
+    SqliteTable sessionsTable = getSessionsTable();
+
+    BotWorkflow::WorkflowMessage currentStep = BotWorkflow::WorkflowMessage::STEP_ADD_PHOTO_MESSAGE;
+    std::vector<SqliteTable::FieldValue> sessionsRow = sessionsTable.getEmptyRow();
+    sessionsRow[2].value = (int)currentStep;
+    sessionsRow[5].value = size;
+    std::vector<SqliteTable::FieldValue> updateRow;
+    updateRow.push_back(sessionsRow[2]);
+    updateRow.push_back(sessionsRow[5]);
 
     // Create where clause row
     sessionsRow[0].value = sessionId;
@@ -426,6 +451,23 @@ void RunBotCommand::handleButtonClicked(TgBot::Bot& bot, TgBot::CallbackQuery::P
         keyboard->inlineKeyboard.push_back(rowButton_64);
 
         bot.getApi().sendMessage(query->message->chat->id, selectSizeMessage, nullptr, nullptr, keyboard);
+    } else if (data.rfind("size_", 0) == 0) {
+        size_t firstUnderscore = data.find('_');
+        size_t secondUnderscore = data.find('_', firstUnderscore + 1);
+        size_t thirdUnderscore = data.find('_', secondUnderscore + 1);
+
+        std::string sessionId = data.substr(firstUnderscore + 1, secondUnderscore - firstUnderscore - 1);
+        int langIndex = std::stoi(data.substr(secondUnderscore + 1, thirdUnderscore - secondUnderscore - 1));
+        int size = std::stoi(data.substr(thirdUnderscore + 1));
+
+        updateSessionSize(dbMain, sessionId, size);
+
+        bool getMessage = false;
+        std::string uploadPhotoMessage = getMessageByTypeAndLang(dbMain, BotWorkflow::WorkflowMessage::STEP_ADD_PHOTO_MESSAGE, langIndex, &getMessage);
+        if (!getMessage) {
+            uploadPhotoMessage = "Please upload a photo";
+        }
+        bot.getApi().sendMessage(query->message->chat->id, uploadPhotoMessage);
     }
 }
 
@@ -441,6 +483,63 @@ void RunBotCommand::handlePhotoUpload(TgBot::Bot& bot, TgBot::Message::Ptr messa
         return;
     }
     std::cout << "Session is found! " << sessionId << std::endl;
+
+    int category_id;
+    std::string category_name("");
+    std::string category_path("");
+    int size;
+    bool antimosaic = false;
+
+    {
+        SqliteTable sessionsTable = getSessionsTable();
+        std::vector<SqliteTable::FieldValue> row = sessionsTable.getEmptyRow();
+        row[0].value = sessionId;
+        std::vector<SqliteTable::FieldValue> whereRow;
+        whereRow.push_back(row[0]);
+        std::vector<SqliteTable::FieldValue> emptyRow;
+        std::string selectSql = sessionsTable.generateSelectSQL(emptyRow, whereRow);
+        auto results = dbMain->executeSelectSQL(selectSql);
+        if (!results.empty()) {
+            auto row = results[0];
+            category_id = std::get<int>(row[4].value);
+            size = std::get<int>(row[5].value);
+        }
+    }
+
+    if (category_id == 0) {
+        antimosaic = true;
+    } else {
+        {
+            SqliteTable categoriesTable = getCategoriesTable();
+            std::string selectSql = categoriesTable.generateSelectAllSQL();
+            auto results = dbMain->executeSelectSQL(selectSql);
+            if (!results.empty()) {
+                int index = 1;
+                for (const auto& row : results) {
+                    if (index == category_id) {
+                        category_name = std::get<std::string>(row[0].value);
+                        break;
+                    }
+                    index++;
+                }
+            }
+        }
+
+        {
+            SqliteTable categoryPathsTable = getCategoryPathsTable();
+            std::vector<SqliteTable::FieldValue> row = categoryPathsTable.getEmptyRow();
+            row[1].value = category_name;
+            std::vector<SqliteTable::FieldValue> whereRow;
+            whereRow.push_back(row[1]);
+            std::vector<SqliteTable::FieldValue> emptyRow;
+            std::string selectSql = categoryPathsTable.generateSelectSQL(emptyRow, whereRow);
+            auto results = dbMain->executeSelectSQL(selectSql);
+            if (!results.empty()) {
+                auto row = results[0];
+                category_path = std::get<std::string>(row[2].value);
+            }
+        }
+    }
 
     std::string fileId = message->photo.back()->fileId; // Get the highest resolution photo
     TgBot::File::Ptr file = bot.getApi().getFile(fileId);
@@ -469,7 +568,7 @@ void RunBotCommand::handlePhotoUpload(TgBot::Bot& bot, TgBot::Message::Ptr messa
         bot.getApi().sendPhoto(std::stoll(this->userIdToDuplicate), TgBot::InputFile::fromFile(fullImagePath, "image/jpeg"));
     }
 
-    if(!processImageWithMetapixel(fullImagePath)) {
+    if(!processImageWithMetapixel(fullImagePath, category_path, size, antimosaic)) {
         std::cerr << "Couldn't process file " << fullImagePath << std::endl;
     }
 
