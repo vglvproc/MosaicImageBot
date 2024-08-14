@@ -9,6 +9,16 @@
 
 class RunBotCommand : public Command {
 public:
+    enum class PhotoProcessingStatus {
+        STATUS_OK,
+        STATUS_PHOTO_NOT_UPLOADED,
+        STATUS_SESSION_NOT_FOUND,
+        STATUS_CANNOT_CREATE_DIRECTORY,
+        STATUS_CANNOT_DOWNLOAD_FILE,
+        STATUS_CANNOT_PROCESS_FILE,
+        STATUS_UNEXPECTED_ERROR
+    };
+
     RunBotCommand();
     RunBotCommand(DatabaseManager *dbManager);
     RunBotCommand(DatabaseManager *dbManager, bool duplicateDataToUser);
@@ -21,7 +31,7 @@ private:
     std::string getToken();
     void handleStartCommand(TgBot::Bot& bot, TgBot::Message::Ptr message, DatabaseManager* dbMain); // TODO: убрать аргумент dbMain, так как функция сейчас является частью класса с доступом к соответствующему полю
     void handleButtonClicked(TgBot::Bot& bot, TgBot::CallbackQuery::Ptr query, DatabaseManager* dbMain);
-    void handlePhotoUpload(TgBot::Bot& bot, TgBot::Message::Ptr message, DatabaseManager* dbMain);
+    PhotoProcessingStatus handlePhotoUpload(TgBot::Bot& bot, TgBot::Message::Ptr message, DatabaseManager* dbMain);
     DatabaseManager *dbManager;
     bool duplicateDataToUser;
     std::string userIdToDuplicate;

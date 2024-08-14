@@ -491,5 +491,63 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
         index++;
     }
 
+    std::vector<std::string> errorPhotoNotUploadedMessages = {
+        std::string("Фото пустое. Пожалуйста, загрузите фото."),
+        std::string("Photo is empty. Please upload a photo."),
+        std::string("Das Foto ist leer. Bitte laden Sie ein Foto hoch."),
+        std::string("La photo est vide. Veuillez télécharger une photo."),
+        std::string("La foto está vacía. Por favor, suba una foto."),
+    };
+
+    index = 1;
+
+    for (const auto& message : errorPhotoNotUploadedMessages) {
+        std::vector<SqliteTable::FieldValue> row;
+        row.push_back({{"message_id", SqliteTable::DataType::INTEGER}, total_index++});
+        row.push_back({{"message_type", SqliteTable::DataType::INTEGER}, (int)BotWorkflow::WorkflowMessage::ERROR_PHOTO_NOT_UPLOADED});
+        row.push_back({{"language_id", SqliteTable::DataType::INTEGER}, index});
+        row.push_back({{"message", SqliteTable::DataType::TEXT}, message});
+        long long current_timestamp = getCurrentTimestamp();
+        row.push_back({{"adding_timestamp", SqliteTable::DataType::TEXT}, std::to_string(current_timestamp)});
+        row.push_back({{"adding_datetime", SqliteTable::DataType::TEXT}, getFormatTimestampWithMilliseconds(current_timestamp)});
+
+        std::string insertSQL = table.generateInsertSQL(row, true);
+
+        if (!dbManager.executeSQL(insertSQL)) {
+            std::cerr << "Failed to insert data into messages table: " << message << std::endl;
+            return false;
+        }
+        index++;
+    }
+
+    std::vector<std::string> errorCannotProcessPhotoMessages = {
+        std::string("Произошла ошибка при попытке обработать фото. Пожалуйста, попробуйте позже..."),
+        std::string("An error occured while trying process the photo. Please try again later..."),
+        std::string("Ein Fehler ist aufgetreten, während das Foto verarbeitet wurde. Bitte versuchen Sie es später erneut..."),
+        std::string("Une erreur s'est produite lors de la tentative de traitement de la photo. Veuillez réessayer plus tard..."),
+        std::string("Ocurrió un error al intentar procesar la foto. Por favor, inténtelo de nuevo más tarde..."),
+    };
+
+    index = 1;
+
+    for (const auto& message : errorCannotProcessPhotoMessages) {
+        std::vector<SqliteTable::FieldValue> row;
+        row.push_back({{"message_id", SqliteTable::DataType::INTEGER}, total_index++});
+        row.push_back({{"message_type", SqliteTable::DataType::INTEGER}, (int)BotWorkflow::WorkflowMessage::ERROR_PHOTO_PROCESSING_FAILED});
+        row.push_back({{"language_id", SqliteTable::DataType::INTEGER}, index});
+        row.push_back({{"message", SqliteTable::DataType::TEXT}, message});
+        long long current_timestamp = getCurrentTimestamp();
+        row.push_back({{"adding_timestamp", SqliteTable::DataType::TEXT}, std::to_string(current_timestamp)});
+        row.push_back({{"adding_datetime", SqliteTable::DataType::TEXT}, getFormatTimestampWithMilliseconds(current_timestamp)});
+
+        std::string insertSQL = table.generateInsertSQL(row, true);
+
+        if (!dbManager.executeSQL(insertSQL)) {
+            std::cerr << "Failed to insert data into messages table: " << message << std::endl;
+            return false;
+        }
+        index++;
+    }
+
     return true;
 }
