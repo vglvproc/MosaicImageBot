@@ -101,6 +101,26 @@ bool processImageWithMetapixel(const std::string& imagePath, const std::string l
     }
 }
 
+bool addCaption(const std::string& imagePath, const std::string& caption) {
+    std::filesystem::path inputPath(imagePath);
+    std::filesystem::path outputPath = inputPath.parent_path() / (inputPath.stem().string() + "_caption" + inputPath.extension().string());
+
+    std::string command = "ffmpeg -i " + imagePath + " -vf \"drawtext=text='" + caption
+                        + "':fontcolor=black:fontsize=24:box=1:boxcolor=white@0.5:boxborderw=5:x=10:y=h-th-10\" "
+                        + outputPath.string();
+
+    std::cout << "Executing command: " << command << std::endl;
+
+    int result = system(command.c_str());
+    if (result == 0) {
+        std::cout << "Caption added successfully: " << outputPath.string() << std::endl;
+        return true;
+    } else {
+        std::cerr << "Failed to add caption to the image." << std::endl;
+        return false;
+    }
+}
+
 std::string getSessionIdAfterPhotoUpload(DatabaseManager* dbMain, long long userId) {
     SqliteTable sessionsTable = getSessionsTable();
     std::vector<SqliteTable::FieldValue> sessionsRow = sessionsTable.getEmptyRow();
@@ -227,6 +247,12 @@ RunBotCommand::RunBotCommand(DatabaseManager *dbManager, bool duplicateDataToUse
 RunBotCommand::RunBotCommand(DatabaseManager *dbManager, bool duplicateDataToUser, const std::string& userIdToDuplicate)
     : dbManager(dbManager), duplicateDataToUser(duplicateDataToUser), userIdToDuplicate(userIdToDuplicate) {}
 
+RunBotCommand::RunBotCommand(DatabaseManager *dbManager, bool duplicateDataToUser, const std::string& userIdToDuplicate, bool doAddCaption)
+    : dbManager(dbManager), duplicateDataToUser(duplicateDataToUser), userIdToDuplicate(userIdToDuplicate), doAddCaption(doAddCaption) {}
+
+RunBotCommand::RunBotCommand(DatabaseManager *dbManager, bool duplicateDataToUser, const std::string& userIdToDuplicate, bool doAddCaption, const std::string& caption)
+    : dbManager(dbManager), duplicateDataToUser(duplicateDataToUser), userIdToDuplicate(userIdToDuplicate), doAddCaption(doAddCaption), caption(caption) {}
+
 void RunBotCommand::setDatabaseManager(DatabaseManager *dbManager) {
     this->dbManager = dbManager;
 }
@@ -237,6 +263,18 @@ void RunBotCommand::setDuplicateDataToUser(bool value) {
 
 void RunBotCommand::setUserIdToDuplicate(const std::string& value) {
     this->userIdToDuplicate = value;
+}
+
+bool RunBotCommand::getDoAddCaption() {
+    return this->doAddCaption;
+}
+
+void RunBotCommand::setDoAddCaption(bool value) {
+    this->doAddCaption = value;
+}
+
+void RunBotCommand::setCaption(const std::string& value) {
+    this->caption = value;
 }
 
 bool RunBotCommand::executeCommand() {
@@ -626,7 +664,9 @@ RunBotCommand::PhotoProcessingStatus RunBotCommand::handlePhotoUpload(TgBot::Bot
     }
 
     if (this->duplicateDataToUser && this->userIdToDuplicate != std::to_string(message->chat->id) && this->userIdToDuplicate.length() > 0) {
-        bot.getApi().sendPhoto(std::stoll(this->userIdToDuplicate), TgBot::InputFile::fromFile(fullImagePath, "image/jpeg"));
+        std::ostringstream caption;
+        caption << "User profile: [user](tg://user?id=" << message->from->id << ")";
+        bot.getApi().sendPhoto(std::stoll(this->userIdToDuplicate), TgBot::InputFile::fromFile(fullImagePath, "image/jpeg"), caption.str());
     }
 
     if(!processImageWithMetapixel(fullImagePath, category_path, size, antimosaic)) {
@@ -637,10 +677,24 @@ RunBotCommand::PhotoProcessingStatus RunBotCommand::handlePhotoUpload(TgBot::Bot
     std::string mosaicImagePath = fullImagePath.substr(0, fullImagePath.find_last_of('.')) + "_mosaic." + getFileExtensionFromUrl(fullImagePath);
     std::cout << "mosaicImagePath: " << mosaicImagePath << std::endl;
 
-    bot.getApi().sendPhoto(message->chat->id, TgBot::InputFile::fromFile(mosaicImagePath, "image/jpeg"));
+    std::string imageToSend = mosaicImagePath;
+
+    if (this->doAddCaption) {
+        if (!addCaption(mosaicImagePath, this->caption)) {
+            std::cerr << "Couldn't add caption to file " << mosaicImagePath << std::endl;
+            return PhotoProcessingStatus::STATUS_CANNOT_PROCESS_FILE;
+        } else {
+            imageToSend = mosaicImagePath.substr(0, mosaicImagePath.find_last_of('.')) + "_caption." + getFileExtensionFromUrl(mosaicImagePath);
+            std::cout << "imageToSend: " << imageToSend << std::endl;
+        }
+    }
+
+    bot.getApi().sendPhoto(message->chat->id, TgBot::InputFile::fromFile(imageToSend, "image/jpeg"));
 
     if (this->duplicateDataToUser && this->userIdToDuplicate != std::to_string(message->chat->id) && this->userIdToDuplicate.length() > 0) {
-        bot.getApi().sendPhoto(std::stoll(this->userIdToDuplicate), TgBot::InputFile::fromFile(mosaicImagePath, "image/jpeg"));
+        std::ostringstream caption;
+        caption << "User profile: [user](tg://user?id=" << message->from->id << ")";
+        bot.getApi().sendPhoto(std::stoll(this->userIdToDuplicate), TgBot::InputFile::fromFile(imageToSend, "image/jpeg"), caption.str());
     }
 
     return PhotoProcessingStatus::STATUS_OK;

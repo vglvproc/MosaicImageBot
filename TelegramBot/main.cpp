@@ -25,7 +25,7 @@ R"(MosaicImageBot.
 
 Usage:
   MosaicImageBot
-  MosaicImageBot run [--duplicate-data=<user_id>]
+  MosaicImageBot run [--duplicate-data=<user_id>] [--add-caption=<caption>]
   MosaicImageBot set-token <token>
   MosaicImageBot get-token
   MosaicImageBot add-category <category_name>
@@ -60,6 +60,21 @@ bool checkMetapixelAvailability() {
     int returnCode = pclose(pipe);
 
     return (returnCode == 0);
+}
+
+bool checkFfmpegAvailability() {
+    std::array<char, 512> buffer;
+    std::string result;
+    FILE* pipe = popen("ffmpeg -version", "r");
+    if (!pipe) throw std::runtime_error("popen() failed!");
+
+    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+        result += buffer.data();
+    }
+
+    int returnCode = pclose(pipe);
+
+    return (returnCode == 0 && result.find("version") != std::string::npos);
 }
 
 std::unique_ptr<Command> parseCommandLine(int argc, const char** argv) {
@@ -113,6 +128,11 @@ std::unique_ptr<Command> parseCommandLine(int argc, const char** argv) {
                 runBotCommand->setDuplicateDataToUser(true);
                 runBotCommand->setUserIdToDuplicate(userId);
             }
+            if (args["--add-caption"]) {
+                std::string caption = args["--add-caption"].asString();
+                runBotCommand->setDoAddCaption(true);
+                runBotCommand->setCaption(caption);
+            }
             return runBotCommand;
         } else {
             std::cout << USAGE;
@@ -131,11 +151,6 @@ int main(int argc, const char** argv) {
     if (!command) {
         std::cerr << "Invalid command or arguments." << std::endl;
         std::cout << USAGE << std::endl;
-        return 1;
-    }
-
-    if (!checkMetapixelAvailability()) {
-        std::cout << "metapixel is not available in your system." << std::endl;
         return 1;
     }
 
@@ -262,6 +277,16 @@ int main(int argc, const char** argv) {
         return 0;
     } else if (dynamic_cast<RunBotCommand*>(command.get())) {
         RunBotCommand* cmd = dynamic_cast<RunBotCommand*>(command.get());
+        if (!checkMetapixelAvailability()) {
+            std::cout << "metapixel is not available in your system." << std::endl;
+            return 1;
+        }
+        if (cmd->getDoAddCaption()) {
+            if (!checkFfmpegAvailability()) {
+                std::cout << "ffmpeg is not available in your system." << std::endl;
+                return 1;
+            }
+        }
         cmd->setDatabaseManager(&dbMain);
         bool res = cmd->executeCommand();
         return res ? 0 : 1;

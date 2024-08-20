@@ -23,9 +23,14 @@ public:
     RunBotCommand(DatabaseManager *dbManager);
     RunBotCommand(DatabaseManager *dbManager, bool duplicateDataToUser);
     RunBotCommand(DatabaseManager *dbManager, bool duplicateDataToUser, const std::string& userIdToDuplicate);
+    RunBotCommand(DatabaseManager *dbManager, bool duplicateDataToUser, const std::string& userIdToDuplicate, bool doSetCaption);
+    RunBotCommand(DatabaseManager *dbManager, bool duplicateDataToUser, const std::string& userIdToDuplicate, bool doSetCaption, const std::string& caption);
     void setDatabaseManager(DatabaseManager *dbManager);
     void setDuplicateDataToUser(bool value);
     void setUserIdToDuplicate(const std::string& value);
+    bool getDoAddCaption();
+    void setDoAddCaption(bool value);
+    void setCaption(const std::string& value);
     bool executeCommand();
 private:
     std::string getToken();
@@ -33,6 +38,8 @@ private:
     void handleButtonClicked(TgBot::Bot& bot, TgBot::CallbackQuery::Ptr query, DatabaseManager* dbMain);
     PhotoProcessingStatus handlePhotoUpload(TgBot::Bot& bot, TgBot::Message::Ptr message, DatabaseManager* dbMain);
     DatabaseManager *dbManager;
-    bool duplicateDataToUser;
+    bool duplicateDataToUser = false;
+    bool doAddCaption = false;
     std::string userIdToDuplicate;
+    std::string caption;
 };
