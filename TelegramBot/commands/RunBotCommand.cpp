@@ -442,18 +442,6 @@ void RunBotCommand::handleButtonClicked(TgBot::Bot& bot, TgBot::CallbackQuery::P
 
         std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_8;
         TgBot::InlineKeyboardButton::Ptr button_8(new TgBot::InlineKeyboardButton());
-        button_8->text = "8x8";
-        button_8->callbackData = "size_" + sessionId + "_" + std::to_string(langIndex) + "_8";
-        rowButton_8.push_back(button_8);
-        keyboard->inlineKeyboard.push_back(rowButton_8);
-
-        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_12;
-        TgBot::InlineKeyboardButton::Ptr button_12(new TgBot::InlineKeyboardButton());
-        button_12->text = "12x12";
-        button_12->callbackData = "size_" + sessionId + "_" + std::to_string(langIndex) + "_12";
-        rowButton_12.push_back(button_12);
-        keyboard->inlineKeyboard.push_back(rowButton_12);
-
         std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_16;
         TgBot::InlineKeyboardButton::Ptr button_16(new TgBot::InlineKeyboardButton());
         button_16->text = "16x16";
@@ -489,12 +477,33 @@ void RunBotCommand::handleButtonClicked(TgBot::Bot& bot, TgBot::CallbackQuery::P
         rowButton_32.push_back(button_32);
         keyboard->inlineKeyboard.push_back(rowButton_32);
 
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_48;
+        TgBot::InlineKeyboardButton::Ptr button_48(new TgBot::InlineKeyboardButton());
+        button_48->text = "48x48";
+        button_48->callbackData = "size_" + sessionId + "_" + std::to_string(langIndex) + "_48";
+        rowButton_48.push_back(button_48);
+        keyboard->inlineKeyboard.push_back(rowButton_48);
+
         std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_64;
         TgBot::InlineKeyboardButton::Ptr button_64(new TgBot::InlineKeyboardButton());
         button_64->text = "64x64";
         button_64->callbackData = "size_" + sessionId + "_" + std::to_string(langIndex) + "_64";
         rowButton_64.push_back(button_64);
         keyboard->inlineKeyboard.push_back(rowButton_64);
+
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_96;
+        TgBot::InlineKeyboardButton::Ptr button_96(new TgBot::InlineKeyboardButton());
+        button_96->text = "96x96";
+        button_96->callbackData = "size_" + sessionId + "_" + std::to_string(langIndex) + "_96";
+        rowButton_96.push_back(button_96);
+        keyboard->inlineKeyboard.push_back(rowButton_96);
+
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_128;
+        TgBot::InlineKeyboardButton::Ptr button_128(new TgBot::InlineKeyboardButton());
+        button_128->text = "128x128";
+        button_128->callbackData = "size_" + sessionId + "_" + std::to_string(langIndex) + "_128";
+        rowButton_128.push_back(button_128);
+        keyboard->inlineKeyboard.push_back(rowButton_128);
 
         bot.getApi().sendMessage(query->message->chat->id, selectSizeMessage, nullptr, nullptr, keyboard);
     } else if (data.rfind("size_", 0) == 0) {
