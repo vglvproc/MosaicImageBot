@@ -182,9 +182,14 @@ int main(int argc, const char** argv) {
         }
         return 0;
     } else if (dynamic_cast<RemoveCategoryCommand*>(command.get())) {
-        std::cout << "This is a RemoveCategoryCommand." << std::endl;
         RemoveCategoryCommand* cmd = dynamic_cast<RemoveCategoryCommand*>(command.get());
-        std::cout << "category_name: " << cmd->getCategoryName() << std::endl;
+        cmd->setDatabaseManager(&dbMain);
+        bool result = cmd->executeCommand();
+        if (result) {
+            std::cout << "Successfully removed category \"" << cmd->getCategoryName() << "\" from database." << std::endl;
+        } else {
+            std::cout << "Failed to remove category \"" << cmd->getCategoryName() << "\" from database." << std::endl;
+        }
         return 0;
     } else if (dynamic_cast<AddImagesToCategoryCommand*>(command.get())) {
         AddImagesToCategoryCommand* cmd = dynamic_cast<AddImagesToCategoryCommand*>(command.get());
