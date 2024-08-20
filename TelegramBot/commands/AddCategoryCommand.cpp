@@ -27,6 +27,5 @@ bool AddCategoryCommand::executeCommand() {
     row[2].value = getFormatTimestampWithMilliseconds(current_timestamp);
 
     std::string sqlCommand = categoriesTable.generateInsertSQL(row, true);
-    dbManager->executeSelectSQL(sqlCommand);
-    return true;
+    return dbManager->executeSQL(sqlCommand);
 }

@@ -172,7 +172,6 @@ int main(int argc, const char** argv) {
         }
         return 0;
     } else if (dynamic_cast<AddCategoryCommand*>(command.get())) {
-        std::cout << "This is a AddCategoryCommand." << std::endl;
         AddCategoryCommand* cmd = dynamic_cast<AddCategoryCommand*>(command.get());
         cmd->setDatabaseManager(&dbMain);
         bool result = cmd->executeCommand();
@@ -212,24 +211,44 @@ int main(int argc, const char** argv) {
         }
         return 0;
     } else if (dynamic_cast<AddNoAdsUserCommand*>(command.get())) {
-        AddNoAdsUserCommand* cmd = dynamic_cast<AddNoAdsUserCommand*>(command.get());
+        AddNoAdsUserCommand* cmd = dynamic_cast<AddNoAdsUserCommand*>(command.get()); // TODO: Check user for right ID!
         cmd->setDatabaseManager(&dbMain);
-        cmd->executeCommand();
+        bool result = cmd->executeCommand();
+        if (result) {
+            std::cout << "Successfully added user with id \"" << cmd->getUserId() << "\" into no ads receiving list." << std::endl;
+        } else {
+            std::cout << "Failed to add user with id \"" << cmd->getUserId() << "\" into no ads receiving list." << std::endl;
+        }
         return 0;
     } else if (dynamic_cast<RemoveNoAdsUserCommand*>(command.get())) {
-        RemoveNoAdsUserCommand* cmd = dynamic_cast<RemoveNoAdsUserCommand*>(command.get());
+        RemoveNoAdsUserCommand* cmd = dynamic_cast<RemoveNoAdsUserCommand*>(command.get()); // TODO: Check user for right ID!
         cmd->setDatabaseManager(&dbMain);
-        cmd->executeCommand();
+        bool result = cmd->executeCommand();
+        if (result) {
+            std::cout << "Successfully removed user with id \"" << cmd->getUserId() << "\" from no ads receiving list." << std::endl;
+        } else {
+            std::cout << "Failed to remove user with id \"" << cmd->getUserId() << "\" from no ads receiving list." << std::endl;
+        }
         return 0;
     } else if (dynamic_cast<AddUnlimitedAccessUserCommand*>(command.get())) {
-        AddUnlimitedAccessUserCommand* cmd = dynamic_cast<AddUnlimitedAccessUserCommand*>(command.get());
+        AddUnlimitedAccessUserCommand* cmd = dynamic_cast<AddUnlimitedAccessUserCommand*>(command.get()); // TODO: Check user for right ID!
         cmd->setDatabaseManager(&dbMain);
-        cmd->executeCommand();
+        bool result = cmd->executeCommand();
+        if (result) {
+            std::cout << "Successfully added user with id \"" << cmd->getUserId() << "\" into unlimited access list." << std::endl;
+        } else {
+            std::cout << "Failed to add user with id \"" << cmd->getUserId() << "\" into unlimited access list." << std::endl;
+        }
         return 0;
     } else if (dynamic_cast<RemoveUnlimitedAccessUserCommand*>(command.get())) {
-        RemoveUnlimitedAccessUserCommand* cmd = dynamic_cast<RemoveUnlimitedAccessUserCommand*>(command.get());
+        RemoveUnlimitedAccessUserCommand* cmd = dynamic_cast<RemoveUnlimitedAccessUserCommand*>(command.get()); // TODO: Check user for right ID!
         cmd->setDatabaseManager(&dbMain);
-        cmd->executeCommand();
+        bool result = cmd->executeCommand();
+        if (result) {
+            std::cout << "Successfully removed user with id \"" << cmd->getUserId() << "\" from unlimited access list." << std::endl;
+        } else {
+            std::cout << "Failed to remove user with id \"" << cmd->getUserId() << "\" from unlimited access list." << std::endl;
+        }
         return 0;
     } else if (dynamic_cast<GetAvailableLangsCommand*>(command.get())) {
         GetAvailableLangsCommand* cmd = dynamic_cast<GetAvailableLangsCommand*>(command.get());

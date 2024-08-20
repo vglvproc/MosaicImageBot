@@ -103,7 +103,7 @@ bool AddImagesToCategoryCommand::executeCommand() {
         row[3].value = std::to_string(current_timestamp);
         row[4].value = getFormatTimestampWithMilliseconds(current_timestamp);
         std::string sqlCommand = categoryPathsTable.generateInsertSQL(row, true);
-        dbManager->executeSelectSQL(sqlCommand);
+        return dbManager->executeSQL(sqlCommand);
     }
 
     return true;

@@ -142,7 +142,7 @@ bool SetCategoryCaptionCommand::executeCommand() {
         row[4].value = std::to_string(current_timestamp);
         row[5].value = getFormatTimestampWithMilliseconds(current_timestamp);
         std::string sqlCommand = captionsTable.generateInsertSQL(row, true);
-        dbManager->executeSelectSQL(sqlCommand);
+        return dbManager->executeSQL(sqlCommand);
     }
 
     return true;

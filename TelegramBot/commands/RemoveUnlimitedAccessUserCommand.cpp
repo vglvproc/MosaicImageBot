@@ -28,6 +28,5 @@ bool RemoveUnlimitedAccessUserCommand::executeCommand() {
     whereRow.push_back(row[0]);
 
     std::string sqlDeleteCommand = unlimitedAccessUsersTable.generateDeleteSQL(whereRow);
-    dbManager->executeSelectSQL(sqlDeleteCommand);
-    return true;
+    return dbManager->executeSQL(sqlDeleteCommand);
 }
