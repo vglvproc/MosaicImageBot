@@ -78,14 +78,18 @@ bool checkUnlimitedAccessForUser(DatabaseManager* dbMain, const std::string& use
     return false;
 }
 
-bool processImageWithMetapixel(const std::string& imagePath, const std::string libraryPath, int size, bool antimosaic) {
+bool processImageWithMetapixel(const std::string& imagePath, const std::string libraryPath, int size, bool antimosaic, const std::string antimosaicPath) {
     std::filesystem::path inputPath(imagePath);
     std::filesystem::path outputPath = inputPath.parent_path() / (inputPath.stem().string() + "_mosaic" + inputPath.extension().string());
 
     std::string command = "metapixel --metapixel " + imagePath + " " + outputPath.string() + " --width=" + std::to_string(size)
                         + " --height=" + std::to_string(size);  + " --library=" + libraryPath;
     if (antimosaic) {
-        command = command + " --antimosaic=\"" + imagePath + "\"";
+        if (antimosaicPath != "") {
+            command = command + " --antimosaic=\"" + antimosaicPath + "\"";
+        } else {
+            command = command + " --antimosaic=\"" + imagePath + "\"";
+        }
     } else {
         command = command + + " --library=\"" + libraryPath + "\"";
     }
@@ -140,6 +144,25 @@ std::string getSessionIdAfterPhotoUpload(DatabaseManager* dbMain, long long user
     return "";
 }
 
+std::string getSessionIdAfterAntimosaicPhotoUpload(DatabaseManager* dbMain, long long userId) {
+    SqliteTable sessionsTable = getSessionsTable();
+    std::vector<SqliteTable::FieldValue> sessionsRow = sessionsTable.getEmptyRow();
+    sessionsRow[1].value = std::to_string(userId);
+    sessionsRow[2].value = (int)BotWorkflow::WorkflowMessage::STEP_ADD_ANTIMOSAIC_PHOTO;
+    std::vector<SqliteTable::FieldValue> whereRow;
+    whereRow.push_back(sessionsRow[1]);
+    whereRow.push_back(sessionsRow[2]);
+    std::vector<SqliteTable::FieldValue> emptyRow;
+    std::string selectSql = sessionsTable.generateSelectSQL(emptyRow, whereRow);
+    std::vector<std::vector<SqliteTable::FieldValue>> results = dbMain->executeSelectSQL(selectSql);
+    if (!results.empty()) {
+        auto row = results[results.size() - 1];
+        return std::get<std::string>(row[0].value);
+    }
+
+    return "";
+}
+
 int getCurrentLangIndexByStepAndUserId(DatabaseManager* dbMain, BotWorkflow::WorkflowMessage step, long long userId) {
     SqliteTable sessionsTable = getSessionsTable();
     std::vector<SqliteTable::FieldValue> sessionsRow = sessionsTable.getEmptyRow();
@@ -157,6 +180,30 @@ int getCurrentLangIndexByStepAndUserId(DatabaseManager* dbMain, BotWorkflow::Wor
     }
 
     return -1;
+}
+
+void updateSessionStep(DatabaseManager* dbMain, const std::string& sessionId, BotWorkflow::WorkflowMessage step) {
+    SqliteTable sessionsTable = getSessionsTable();
+
+    // Create update row
+    BotWorkflow::WorkflowMessage currentStep = step;
+    std::vector<SqliteTable::FieldValue> sessionsRow = sessionsTable.getEmptyRow();
+    sessionsRow[2].value = (int)currentStep;
+    std::vector<SqliteTable::FieldValue> updateRow;
+    updateRow.push_back(sessionsRow[2]);
+
+    // Create where clause row
+    sessionsRow[0].value = sessionId;
+    std::vector<SqliteTable::FieldValue> whereRow;
+    whereRow.push_back(sessionsRow[0]);
+
+    std::string updateSql = sessionsTable.generateUpdateSQL(updateRow, whereRow);
+    std::cout << "UPDATE SQL: " << updateSql << std::endl;
+    if (dbMain->executeSQL(updateSql)) {
+        std::cout << "Successfully updated sessionId: " << sessionId << std::endl;
+    } else {
+        std::cerr << "Failed to update session: " << sessionId << std::endl;
+    }
 }
 
 void updateSessionLanguage(DatabaseManager* dbMain, const std::string& sessionId, int languageIndex) {
@@ -453,13 +500,70 @@ void RunBotCommand::handleButtonClicked(TgBot::Bot& bot, TgBot::CallbackQuery::P
             std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton;
             TgBot::InlineKeyboardButton::Ptr button(new TgBot::InlineKeyboardButton());
             button->text = antimosaic_caption;
-            button->callbackData = "theme_" + sessionId + "_" + std::to_string(langIndex) + "_0";
+            button->callbackData = "antimosaic_" + sessionId + "_" + std::to_string(langIndex) + "_0";
             rowButton.push_back(button);
             keyboard->inlineKeyboard.push_back(rowButton);
             bot.getApi().sendMessage(query->message->chat->id, selectThemeMessage, nullptr, nullptr, keyboard);
         } else {
             std::cout << "Captions list is empty." << std::endl; // TODO: Need to be handled
         }
+    } else if (data.rfind("antimosaic_", 0) == 0) {
+        size_t firstUnderscore = data.find('_');
+        size_t secondUnderscore = data.find('_', firstUnderscore + 1);
+        size_t thirdUnderscore = data.find('_', secondUnderscore + 1);
+
+        std::string sessionId = data.substr(firstUnderscore + 1, secondUnderscore - firstUnderscore - 1);
+        int langIndex = std::stoi(data.substr(secondUnderscore + 1, thirdUnderscore - secondUnderscore - 1));
+
+        bool getMessage = false;
+        std::string selectModeMessage = getMessageByTypeAndLang(dbMain, BotWorkflow::WorkflowMessage::STEP_SELECT_ANTIMOSAIC_MODE, langIndex, &getMessage);
+        if (!getMessage) {
+            selectModeMessage = "Which image should be used as the source for creating the mosaic?";
+        }
+        TgBot::InlineKeyboardMarkup::Ptr keyboard(new TgBot::InlineKeyboardMarkup());
+
+        getMessage = false;
+        std::string modeSameMessage = getMessageByTypeAndLang(dbMain, BotWorkflow::WorkflowMessage::CAPTION_ANTI_MOSAIC_ORIGINAL_PIC, langIndex, &getMessage);
+        if (!getMessage) {
+            modeSameMessage = "Use the same image";
+        }
+
+        getMessage = false;
+        std::string modeAnotherMessage = getMessageByTypeAndLang(dbMain, BotWorkflow::WorkflowMessage::CAPTION_ANTI_MOSAIC_ANOTHER_PIC, langIndex, &getMessage);
+        if (!getMessage) {
+            modeAnotherMessage = "Use a different image";
+        }
+
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_same;
+        TgBot::InlineKeyboardButton::Ptr button_same(new TgBot::InlineKeyboardButton());
+        button_same->text = modeSameMessage;
+        button_same->callbackData = "theme_" + sessionId + "_" + std::to_string(langIndex) + "_0";
+        rowButton_same.push_back(button_same);
+        keyboard->inlineKeyboard.push_back(rowButton_same);
+
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_another;
+        TgBot::InlineKeyboardButton::Ptr button_another(new TgBot::InlineKeyboardButton());
+        button_another->text = modeAnotherMessage;
+        button_another->callbackData = "another_" + sessionId + "_" + std::to_string(langIndex);
+        rowButton_another.push_back(button_another);
+        keyboard->inlineKeyboard.push_back(rowButton_another);
+
+        bot.getApi().sendMessage(query->message->chat->id, selectModeMessage, nullptr, nullptr, keyboard);
+    } else if (data.rfind("another_", 0) == 0) {
+        size_t firstUnderscore = data.find('_');
+        size_t secondUnderscore = data.find('_', firstUnderscore + 1);
+        size_t thirdUnderscore = data.find('_', secondUnderscore + 1);
+
+        std::string sessionId = data.substr(firstUnderscore + 1, secondUnderscore - firstUnderscore - 1);
+        int langIndex = std::stoi(data.substr(secondUnderscore + 1, thirdUnderscore - secondUnderscore - 1));
+
+        bool getMessage = false;
+        std::string uploadPhotoMessage = getMessageByTypeAndLang(dbMain, BotWorkflow::WorkflowMessage::STEP_ADD_PHOTO_MESSAGE, langIndex, &getMessage);
+        if (!getMessage) {
+            uploadPhotoMessage = "Please upload a photo";
+        }
+        updateSessionStep(dbMain, sessionId, BotWorkflow::WorkflowMessage::STEP_ADD_ANTIMOSAIC_PHOTO);
+        bot.getApi().sendMessage(query->message->chat->id, uploadPhotoMessage);
     } else if (data.rfind("theme_", 0) == 0) {
         size_t firstUnderscore = data.find('_');
         size_t secondUnderscore = data.find('_', firstUnderscore + 1);
@@ -569,133 +673,266 @@ RunBotCommand::PhotoProcessingStatus RunBotCommand::handlePhotoUpload(TgBot::Bot
         return PhotoProcessingStatus::STATUS_PHOTO_NOT_UPLOADED;
     }
 
-    std::string sessionId = getSessionIdAfterPhotoUpload(dbMain, message->from->id);
-    if (sessionId.empty()) {
-        return PhotoProcessingStatus::STATUS_SESSION_NOT_FOUND;
-    }
-    std::cout << "Session is found! " << sessionId << std::endl;
+    std::string antimosaicSessionId = getSessionIdAfterAntimosaicPhotoUpload(dbMain, message->from->id);
 
-    int lang_id = -1;
-    int category_id;
-    std::string category_name("");
-    std::string category_path("");
-    int size;
-    bool antimosaic = false;
-
-    {
-        SqliteTable sessionsTable = getSessionsTable();
-        std::vector<SqliteTable::FieldValue> row = sessionsTable.getEmptyRow();
-        row[0].value = sessionId;
-        std::vector<SqliteTable::FieldValue> whereRow;
-        whereRow.push_back(row[0]);
-        std::vector<SqliteTable::FieldValue> emptyRow;
-        std::string selectSql = sessionsTable.generateSelectSQL(emptyRow, whereRow);
-        auto results = dbMain->executeSelectSQL(selectSql);
-        if (!results.empty()) {
-            auto row = results[0];
-            lang_id = std::get<int>(row[3].value);
-            category_id = std::get<int>(row[4].value);
-            size = std::get<int>(row[5].value);
+    if (antimosaicSessionId.empty()) {
+        std::string sessionId = getSessionIdAfterPhotoUpload(dbMain, message->from->id);
+        if (sessionId.empty()) {
+            return PhotoProcessingStatus::STATUS_SESSION_NOT_FOUND;
         }
-    }
+        std::cout << "Session is found! " << sessionId << std::endl;
 
-    if (category_id == 0) {
-        antimosaic = true;
-    } else {
+        int lang_id = -1;
+        int category_id;
+        std::string category_name("");
+        std::string category_path("");
+        int size;
+        bool antimosaic = false;
+
         {
-            SqliteTable categoriesTable = getCategoriesTable();
-            std::string selectSql = categoriesTable.generateSelectAllSQL();
+            SqliteTable sessionsTable = getSessionsTable();
+            std::vector<SqliteTable::FieldValue> row = sessionsTable.getEmptyRow();
+            row[0].value = sessionId;
+            std::vector<SqliteTable::FieldValue> whereRow;
+            whereRow.push_back(row[0]);
+            std::vector<SqliteTable::FieldValue> emptyRow;
+            std::string selectSql = sessionsTable.generateSelectSQL(emptyRow, whereRow);
             auto results = dbMain->executeSelectSQL(selectSql);
             if (!results.empty()) {
-                int index = 1;
-                for (const auto& row : results) {
-                    if (index == category_id) {
-                        category_name = std::get<std::string>(row[0].value);
-                        break;
+                auto row = results[0];
+                lang_id = std::get<int>(row[3].value);
+                category_id = std::get<int>(row[4].value);
+                size = std::get<int>(row[5].value);
+            }
+        }
+
+        if (category_id == 0) {
+            antimosaic = true;
+        } else {
+            {
+                SqliteTable categoriesTable = getCategoriesTable();
+                std::string selectSql = categoriesTable.generateSelectAllSQL();
+                auto results = dbMain->executeSelectSQL(selectSql);
+                if (!results.empty()) {
+                    int index = 1;
+                    for (const auto& row : results) {
+                        if (index == category_id) {
+                            category_name = std::get<std::string>(row[0].value);
+                            break;
+                        }
+                        index++;
                     }
-                    index++;
+                }
+            }
+
+            {
+                SqliteTable categoryPathsTable = getCategoryPathsTable();
+                std::vector<SqliteTable::FieldValue> row = categoryPathsTable.getEmptyRow();
+                row[1].value = category_name;
+                std::vector<SqliteTable::FieldValue> whereRow;
+                whereRow.push_back(row[1]);
+                std::vector<SqliteTable::FieldValue> emptyRow;
+                std::string selectSql = categoryPathsTable.generateSelectSQL(emptyRow, whereRow);
+                auto results = dbMain->executeSelectSQL(selectSql);
+                if (!results.empty()) {
+                    auto row = results[0];
+                    category_path = std::get<std::string>(row[2].value);
                 }
             }
         }
 
-        {
-            SqliteTable categoryPathsTable = getCategoryPathsTable();
-            std::vector<SqliteTable::FieldValue> row = categoryPathsTable.getEmptyRow();
-            row[1].value = category_name;
-            std::vector<SqliteTable::FieldValue> whereRow;
-            whereRow.push_back(row[1]);
-            std::vector<SqliteTable::FieldValue> emptyRow;
-            std::string selectSql = categoryPathsTable.generateSelectSQL(emptyRow, whereRow);
-            auto results = dbMain->executeSelectSQL(selectSql);
-            if (!results.empty()) {
-                auto row = results[0];
-                category_path = std::get<std::string>(row[2].value);
+        std::string fileId = message->photo.back()->fileId; // Get the highest resolution photo
+        TgBot::File::Ptr file = bot.getApi().getFile(fileId);
+        std::string filePath = file->filePath;
+
+        // Download the photo
+        std::ostringstream photoUrl;
+        photoUrl << "https://api.telegram.org/file/bot" << bot.getToken() << "/" << filePath;
+        std::cout << "photoUrl: " << photoUrl.str() << std::endl;
+
+        bool getMessage = false;
+        std::string waitForResultMessage = getMessageByTypeAndLang(dbMain, BotWorkflow::WorkflowMessage::STEP_WAITING_FOR_RESULT_MESSAGE, lang_id, &getMessage);
+        if (!getMessage) {
+            waitForResultMessage = "Photo uploaded successfully. Please wait for result...";
+        }
+        bot.getApi().sendMessage(message->chat->id, waitForResultMessage);
+
+        if (!createDirectory(getCurrentWorkingDir() + std::string("/.temp/images/") + sessionId)) {
+            std::cerr << "Couldn't create directory " << getCurrentWorkingDir() + std::string("/.temp/images/") << std::endl;
+            return PhotoProcessingStatus::STATUS_CANNOT_CREATE_DIRECTORY;
+        }
+
+        std::string filename = std::to_string(getCurrentTimestamp()) + "." + getFileExtensionFromUrl(photoUrl.str());
+        std::string fullImagePath = getCurrentWorkingDir() + std::string("/.temp/images/") + sessionId + "/" + filename;
+        std::string antimosaicPath = "";
+        if (antimosaic) {
+            antimosaicPath = getCurrentWorkingDir() + std::string("/.temp/images/") + sessionId + "/antimosaic." + getFileExtensionFromUrl(photoUrl.str());
+            if (!std::filesystem::exists(antimosaicPath)) {
+                antimosaicPath = "";
+            } else {
+                if (this->duplicateDataToUser && this->userIdToDuplicate != std::to_string(message->chat->id) && this->userIdToDuplicate.length() > 0) {
+                    std::ostringstream caption;
+                    caption << "User profile: [user](tg://user?id=" << message->from->id << ")";
+                    bot.getApi().sendPhoto(std::stoll(this->userIdToDuplicate), TgBot::InputFile::fromFile(antimosaicPath, "image/jpeg"), caption.str());
+                }
             }
         }
-    }
 
-    std::string fileId = message->photo.back()->fileId; // Get the highest resolution photo
-    TgBot::File::Ptr file = bot.getApi().getFile(fileId);
-    std::string filePath = file->filePath;
-
-    // Download the photo
-    std::ostringstream photoUrl;
-    photoUrl << "https://api.telegram.org/file/bot" << bot.getToken() << "/" << filePath;
-    std::cout << "photoUrl: " << photoUrl.str() << std::endl;
-
-    bool getMessage = false;
-    std::string waitForResultMessage = getMessageByTypeAndLang(dbMain, BotWorkflow::WorkflowMessage::STEP_WAITING_FOR_RESULT_MESSAGE, lang_id, &getMessage);
-    if (!getMessage) {
-        waitForResultMessage = "Photo uploaded successfully. Please wait for result...";
-    }
-    bot.getApi().sendMessage(message->chat->id, waitForResultMessage);
-
-    if (!createDirectory(getCurrentWorkingDir() + std::string("/.temp/images/") + sessionId)) {
-        std::cerr << "Couldn't create directory " << getCurrentWorkingDir() + std::string("/.temp/images/") << std::endl;
-        return PhotoProcessingStatus::STATUS_CANNOT_CREATE_DIRECTORY;
-    }
-
-    std::string filename = std::to_string(getCurrentTimestamp()) + "." + getFileExtensionFromUrl(photoUrl.str());
-    std::string fullImagePath = getCurrentWorkingDir() + std::string("/.temp/images/") + sessionId + "/" + filename;
-
-    if (!downloadFile(photoUrl.str(), fullImagePath)) {
-        std::cerr << "Couldn't download file " << fullImagePath << std::endl;
-        return PhotoProcessingStatus::STATUS_CANNOT_DOWNLOAD_FILE;
-    }
-
-    if (this->duplicateDataToUser && this->userIdToDuplicate != std::to_string(message->chat->id) && this->userIdToDuplicate.length() > 0) {
-        std::ostringstream caption;
-        caption << "User profile: [user](tg://user?id=" << message->from->id << ")";
-        bot.getApi().sendPhoto(std::stoll(this->userIdToDuplicate), TgBot::InputFile::fromFile(fullImagePath, "image/jpeg"), caption.str());
-    }
-
-    if(!processImageWithMetapixel(fullImagePath, category_path, size, antimosaic)) {
-        std::cerr << "Couldn't process file " << fullImagePath << std::endl;
-        return PhotoProcessingStatus::STATUS_CANNOT_PROCESS_FILE;
-    }
-
-    std::string mosaicImagePath = fullImagePath.substr(0, fullImagePath.find_last_of('.')) + "_mosaic." + getFileExtensionFromUrl(fullImagePath);
-    std::cout << "mosaicImagePath: " << mosaicImagePath << std::endl;
-
-    std::string imageToSend = mosaicImagePath;
-
-    if (this->doAddCaption) {
-        if (!addCaption(mosaicImagePath, this->caption)) {
-            std::cerr << "Couldn't add caption to file " << mosaicImagePath << std::endl;
-            return PhotoProcessingStatus::STATUS_CANNOT_PROCESS_FILE;
-        } else {
-            imageToSend = mosaicImagePath.substr(0, mosaicImagePath.find_last_of('.')) + "_caption." + getFileExtensionFromUrl(mosaicImagePath);
-            std::cout << "imageToSend: " << imageToSend << std::endl;
+        if (!downloadFile(photoUrl.str(), fullImagePath)) {
+            std::cerr << "Couldn't download file " << fullImagePath << std::endl;
+            return PhotoProcessingStatus::STATUS_CANNOT_DOWNLOAD_FILE;
         }
+
+        if (this->duplicateDataToUser && this->userIdToDuplicate != std::to_string(message->chat->id) && this->userIdToDuplicate.length() > 0) {
+            std::ostringstream caption;
+            caption << "User profile: [user](tg://user?id=" << message->from->id << ")";
+            bot.getApi().sendPhoto(std::stoll(this->userIdToDuplicate), TgBot::InputFile::fromFile(fullImagePath, "image/jpeg"), caption.str());
+        }
+
+        if(!processImageWithMetapixel(fullImagePath, category_path, size, antimosaic, antimosaicPath)) {
+            std::cerr << "Couldn't process file " << fullImagePath << std::endl;
+            return PhotoProcessingStatus::STATUS_CANNOT_PROCESS_FILE;
+        }
+
+        std::string mosaicImagePath = fullImagePath.substr(0, fullImagePath.find_last_of('.')) + "_mosaic." + getFileExtensionFromUrl(fullImagePath);
+        std::cout << "mosaicImagePath: " << mosaicImagePath << std::endl;
+
+        std::string imageToSend = mosaicImagePath;
+
+        if (this->doAddCaption) {
+            if (!addCaption(mosaicImagePath, this->caption)) {
+                std::cerr << "Couldn't add caption to file " << mosaicImagePath << std::endl;
+                return PhotoProcessingStatus::STATUS_CANNOT_PROCESS_FILE;
+            } else {
+                imageToSend = mosaicImagePath.substr(0, mosaicImagePath.find_last_of('.')) + "_caption." + getFileExtensionFromUrl(mosaicImagePath);
+                std::cout << "imageToSend: " << imageToSend << std::endl;
+            }
+        }
+
+        bot.getApi().sendPhoto(message->chat->id, TgBot::InputFile::fromFile(imageToSend, "image/jpeg"));
+
+        if (this->duplicateDataToUser && this->userIdToDuplicate != std::to_string(message->chat->id) && this->userIdToDuplicate.length() > 0) {
+            std::ostringstream caption;
+            caption << "User profile: [user](tg://user?id=" << message->from->id << ")";
+            bot.getApi().sendPhoto(std::stoll(this->userIdToDuplicate), TgBot::InputFile::fromFile(imageToSend, "image/jpeg"), caption.str());
+        }
+
+        return PhotoProcessingStatus::STATUS_OK;
+    } else {
+        int langIndex = -1;
+        langIndex = getCurrentLangIndexByStepAndUserId(dbMain, BotWorkflow::WorkflowMessage::STEP_ADD_ANTIMOSAIC_PHOTO, message->from->id);
+
+        std::string fileId = message->photo.back()->fileId; // Get the highest resolution photo
+        TgBot::File::Ptr file = bot.getApi().getFile(fileId);
+        std::string filePath = file->filePath;
+
+        // Download the photo
+        std::ostringstream photoUrl;
+        photoUrl << "https://api.telegram.org/file/bot" << bot.getToken() << "/" << filePath;
+        std::cout << "photoUrl: " << photoUrl.str() << std::endl;
+
+        //bool getMessage = false;
+        //std::string waitForResultMessage = getMessageByTypeAndLang(dbMain, BotWorkflow::WorkflowMessage::STEP_WAITING_FOR_RESULT_MESSAGE, lang_id, &getMessage);
+        //if (!getMessage) {
+        //    waitForResultMessage = "Photo uploaded successfully. Please wait for result...";
+        //}
+        //bot.getApi().sendMessage(message->chat->id, waitForResultMessage);
+
+        if (!createDirectory(getCurrentWorkingDir() + std::string("/.temp/images/") + antimosaicSessionId)) {
+            std::cerr << "Couldn't create directory " << getCurrentWorkingDir() + std::string("/.temp/images/") + antimosaicSessionId << std::endl;
+            return PhotoProcessingStatus::STATUS_CANNOT_CREATE_DIRECTORY;
+        }
+
+        std::string fullImagePath = getCurrentWorkingDir() + std::string("/.temp/images/") + antimosaicSessionId + "/antimosaic." + getFileExtensionFromUrl(photoUrl.str());
+
+        if (std::filesystem::exists(fullImagePath)) {
+            try {
+                std::filesystem::remove(fullImagePath);
+           } catch (const std::filesystem::filesystem_error& e) {
+                std::cerr << "Error deleting file " << fullImagePath << ": " << e.what() << std::endl;
+                return PhotoProcessingStatus::STATUS_CANNOT_DELETE_FILE;
+           }
+        }
+
+        if (!downloadFile(photoUrl.str(), fullImagePath)) {
+            std::cerr << "Couldn't download file " << fullImagePath << std::endl;
+            return PhotoProcessingStatus::STATUS_CANNOT_DOWNLOAD_FILE;
+        }
+
+        updateSessionTheme(dbMain, antimosaicSessionId, 0);
+
+        bool getMessage = false;
+        std::string selectSizeMessage = getMessageByTypeAndLang(dbMain, BotWorkflow::WorkflowMessage::STEP_SELECT_SIZE, langIndex, &getMessage);
+        if (!getMessage) {
+            selectSizeMessage = "Please select the size of the tile";
+        }
+        TgBot::InlineKeyboardMarkup::Ptr keyboard(new TgBot::InlineKeyboardMarkup());
+
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_8;
+        TgBot::InlineKeyboardButton::Ptr button_8(new TgBot::InlineKeyboardButton());
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_16;
+        TgBot::InlineKeyboardButton::Ptr button_16(new TgBot::InlineKeyboardButton());
+        button_16->text = "16x16";
+        button_16->callbackData = "size_" + antimosaicSessionId + "_" + std::to_string(langIndex) + "_16";
+        rowButton_16.push_back(button_16);
+        keyboard->inlineKeyboard.push_back(rowButton_16);
+
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_20;
+        TgBot::InlineKeyboardButton::Ptr button_20(new TgBot::InlineKeyboardButton());
+        button_20->text = "20x20";
+        button_20->callbackData = "size_" + antimosaicSessionId + "_" + std::to_string(langIndex) + "_20";
+        rowButton_20.push_back(button_20);
+        keyboard->inlineKeyboard.push_back(rowButton_20);
+
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_24;
+        TgBot::InlineKeyboardButton::Ptr button_24(new TgBot::InlineKeyboardButton());
+        button_24->text = "24x24";
+        button_24->callbackData = "size_" + antimosaicSessionId + "_" + std::to_string(langIndex) + "_24";
+        rowButton_24.push_back(button_24);
+        keyboard->inlineKeyboard.push_back(rowButton_24);
+
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_28;
+        TgBot::InlineKeyboardButton::Ptr button_28(new TgBot::InlineKeyboardButton());
+        button_28->text = "28x28";
+        button_28->callbackData = "size_" + antimosaicSessionId + "_" + std::to_string(langIndex) + "_28";
+        rowButton_28.push_back(button_28);
+        keyboard->inlineKeyboard.push_back(rowButton_28);
+
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_32;
+        TgBot::InlineKeyboardButton::Ptr button_32(new TgBot::InlineKeyboardButton());
+        button_32->text = "32x32";
+        button_32->callbackData = "size_" + antimosaicSessionId + "_" + std::to_string(langIndex) + "_32";
+        rowButton_32.push_back(button_32);
+        keyboard->inlineKeyboard.push_back(rowButton_32);
+
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_48;
+        TgBot::InlineKeyboardButton::Ptr button_48(new TgBot::InlineKeyboardButton());
+        button_48->text = "48x48";
+        button_48->callbackData = "size_" + antimosaicSessionId + "_" + std::to_string(langIndex) + "_48";
+        rowButton_48.push_back(button_48);
+        keyboard->inlineKeyboard.push_back(rowButton_48);
+
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_64;
+        TgBot::InlineKeyboardButton::Ptr button_64(new TgBot::InlineKeyboardButton());
+        button_64->text = "64x64";
+        button_64->callbackData = "size_" + antimosaicSessionId + "_" + std::to_string(langIndex) + "_64";
+        rowButton_64.push_back(button_64);
+        keyboard->inlineKeyboard.push_back(rowButton_64);
+
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_96;
+        TgBot::InlineKeyboardButton::Ptr button_96(new TgBot::InlineKeyboardButton());
+        button_96->text = "96x96";
+        button_96->callbackData = "size_" + antimosaicSessionId + "_" + std::to_string(langIndex) + "_96";
+        rowButton_96.push_back(button_96);
+        keyboard->inlineKeyboard.push_back(rowButton_96);
+
+        std::vector<TgBot::InlineKeyboardButton::Ptr> rowButton_128;
+        TgBot::InlineKeyboardButton::Ptr button_128(new TgBot::InlineKeyboardButton());
+        button_128->text = "128x128";
+        button_128->callbackData = "size_" + antimosaicSessionId + "_" + std::to_string(langIndex) + "_128";
+        rowButton_128.push_back(button_128);
+        keyboard->inlineKeyboard.push_back(rowButton_128);
+
+        bot.getApi().sendMessage(message->from->id, selectSizeMessage, nullptr, nullptr, keyboard);
     }
-
-    bot.getApi().sendPhoto(message->chat->id, TgBot::InputFile::fromFile(imageToSend, "image/jpeg"));
-
-    if (this->duplicateDataToUser && this->userIdToDuplicate != std::to_string(message->chat->id) && this->userIdToDuplicate.length() > 0) {
-        std::ostringstream caption;
-        caption << "User profile: [user](tg://user?id=" << message->from->id << ")";
-        bot.getApi().sendPhoto(std::stoll(this->userIdToDuplicate), TgBot::InputFile::fromFile(imageToSend, "image/jpeg"), caption.str());
-    }
-
-    return PhotoProcessingStatus::STATUS_OK;
 }

@@ -403,6 +403,96 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
         index++;
     }
 
+    std::vector<std::string> antimosaicSelectModeMessages = {
+        std::string("Какое изображение использовать в качестве источника составления мозаики?"),
+        std::string("Which image should be used as the source for creating the mosaic?"),
+        std::string("Welches Bild soll als Quelle für die Erstellung des Mosaiks verwendet werden?"),
+        std::string("Quelle image doit être utilisée comme source pour créer la mosaïque ?"),
+        std::string("¿Qué imagen debe utilizarse como fuente para crear el mosaico?"),
+    };
+
+    index = 1;
+
+    for (const auto& message : antimosaicSelectModeMessages) {
+        std::vector<SqliteTable::FieldValue> row;
+        row.push_back({{"message_id", SqliteTable::DataType::INTEGER}, total_index++});
+        row.push_back({{"message_type", SqliteTable::DataType::INTEGER}, (int)BotWorkflow::WorkflowMessage::STEP_SELECT_ANTIMOSAIC_MODE});
+        row.push_back({{"language_id", SqliteTable::DataType::INTEGER}, index});
+        row.push_back({{"message", SqliteTable::DataType::TEXT}, message});
+        long long current_timestamp = getCurrentTimestamp();
+        row.push_back({{"adding_timestamp", SqliteTable::DataType::TEXT}, std::to_string(current_timestamp)});
+        row.push_back({{"adding_datetime", SqliteTable::DataType::TEXT}, getFormatTimestampWithMilliseconds(current_timestamp)});
+
+        std::string insertSQL = table.generateInsertSQL(row, true);
+        std::cout << insertSQL << std::endl;
+
+        if (!dbManager.executeSQL(insertSQL)) {
+            std::cerr << "Failed to insert data into messages table: " << message << std::endl;
+            return false;
+        }
+        index++;
+    }
+
+    std::vector<std::string> antimosaicModeOriginalMessages = {
+        std::string("Использовать то же самое изображение"),
+        std::string("Use the same image"),
+        std::string("Dasselbe Bild verwenden"),
+        std::string("Utiliser la même image"),
+        std::string("Usar la misma imagen"),
+    };
+
+    index = 1;
+
+    for (const auto& message : antimosaicModeOriginalMessages) {
+        std::vector<SqliteTable::FieldValue> row;
+        row.push_back({{"message_id", SqliteTable::DataType::INTEGER}, total_index++});
+        row.push_back({{"message_type", SqliteTable::DataType::INTEGER}, (int)BotWorkflow::WorkflowMessage::CAPTION_ANTI_MOSAIC_ORIGINAL_PIC});
+        row.push_back({{"language_id", SqliteTable::DataType::INTEGER}, index});
+        row.push_back({{"message", SqliteTable::DataType::TEXT}, message});
+        long long current_timestamp = getCurrentTimestamp();
+        row.push_back({{"adding_timestamp", SqliteTable::DataType::TEXT}, std::to_string(current_timestamp)});
+        row.push_back({{"adding_datetime", SqliteTable::DataType::TEXT}, getFormatTimestampWithMilliseconds(current_timestamp)});
+
+        std::string insertSQL = table.generateInsertSQL(row, true);
+        std::cout << insertSQL << std::endl;
+
+        if (!dbManager.executeSQL(insertSQL)) {
+            std::cerr << "Failed to insert data into messages table: " << message << std::endl;
+            return false;
+        }
+        index++;
+    }
+
+    std::vector<std::string> antimosaicModeAnotherMessages = {
+        std::string("Использовать другое изображение"),
+        std::string("Use a different image"),
+        std::string("Ein anderes Bild verwenden"),
+        std::string("Utiliser une autre image"),
+        std::string("Usar una imagen diferente"),
+    };
+
+    index = 1;
+
+    for (const auto& message : antimosaicModeAnotherMessages) {
+        std::vector<SqliteTable::FieldValue> row;
+        row.push_back({{"message_id", SqliteTable::DataType::INTEGER}, total_index++});
+        row.push_back({{"message_type", SqliteTable::DataType::INTEGER}, (int)BotWorkflow::WorkflowMessage::CAPTION_ANTI_MOSAIC_ANOTHER_PIC});
+        row.push_back({{"language_id", SqliteTable::DataType::INTEGER}, index});
+        row.push_back({{"message", SqliteTable::DataType::TEXT}, message});
+        long long current_timestamp = getCurrentTimestamp();
+        row.push_back({{"adding_timestamp", SqliteTable::DataType::TEXT}, std::to_string(current_timestamp)});
+        row.push_back({{"adding_datetime", SqliteTable::DataType::TEXT}, getFormatTimestampWithMilliseconds(current_timestamp)});
+
+        std::string insertSQL = table.generateInsertSQL(row, true);
+        std::cout << insertSQL << std::endl;
+
+        if (!dbManager.executeSQL(insertSQL)) {
+            std::cerr << "Failed to insert data into messages table: " << message << std::endl;
+            return false;
+        }
+        index++;
+    }
+
     std::vector<std::string> selectSizeMessages = {
         std::string("Пожалуйста, выберите размер плитки"),
         std::string("Please select the size of the tile"),
