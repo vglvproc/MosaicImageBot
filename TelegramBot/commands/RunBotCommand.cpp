@@ -78,6 +78,38 @@ bool checkUnlimitedAccessForUser(DatabaseManager* dbMain, const std::string& use
     return false;
 }
 
+bool addRequestToQueue(DatabaseManager* dbMain, const std::string& session_id, const std::string& imagePath, const std::string libraryPath, int size, bool antimosaic, const std::string antimosaicPath) {
+    std::filesystem::path inputPath(imagePath);
+    std::filesystem::path outputPath = inputPath.parent_path() / (inputPath.stem().string() + "_mosaic" + inputPath.extension().string());
+
+    std::string command = "metapixel --metapixel " + imagePath + " " + outputPath.string() + " --width=" + std::to_string(size)
+                        + " --height=" + std::to_string(size);  + " --library=" + libraryPath;
+    if (antimosaic) {
+        if (antimosaicPath != "") {
+            command = command + " --antimosaic=\"" + antimosaicPath + "\"";
+        } else {
+            command = command + " --antimosaic=\"" + imagePath + "\"";
+        }
+    } else {
+        command = command + + " --library=\"" + libraryPath + "\"";
+    }
+
+    SqliteTable requestsTable = getRequestsTable();
+    std::string request_id = getRandomHexValue(32);
+    auto row = requestsTable.getEmptyRow();
+    long long current_timestamp = getCurrentTimestamp();
+    row[0].value = request_id;
+    row[1].value = session_id;
+    row[2].value = command;
+    row[3].value = (int)BotWorkflow::RequestStep::REQUEST_STEP_WAITING;
+    row[4].value = std::to_string(current_timestamp);
+    row[5].value = getFormatTimestampWithMilliseconds(current_timestamp);
+
+    std::string sqlCommand = requestsTable.generateInsertSQL(row, true);
+    std::cout << sqlCommand << std::endl;
+    return dbMain->executeSQL(sqlCommand);
+}
+
 bool processImageWithMetapixel(const std::string& imagePath, const std::string libraryPath, int size, bool antimosaic, const std::string antimosaicPath) {
     std::filesystem::path inputPath(imagePath);
     std::filesystem::path outputPath = inputPath.parent_path() / (inputPath.stem().string() + "_mosaic" + inputPath.extension().string());
@@ -787,6 +819,11 @@ RunBotCommand::PhotoProcessingStatus RunBotCommand::handlePhotoUpload(TgBot::Bot
             std::ostringstream caption;
             caption << "User profile: [user](tg://user?id=" << message->from->id << ")";
             bot.getApi().sendPhoto(std::stoll(this->userIdToDuplicate), TgBot::InputFile::fromFile(fullImagePath, "image/jpeg"), caption.str());
+        }
+
+        if(!addRequestToQueue(dbMain, sessionId, fullImagePath, category_path, size, antimosaic, antimosaicPath)) {
+            std::cerr << "Couldn't add request to queue" << std::endl;
+            return PhotoProcessingStatus::STATUS_CANNOT_ADD_REQUEST;
         }
 
         if(!processImageWithMetapixel(fullImagePath, category_path, size, antimosaic, antimosaicPath)) {

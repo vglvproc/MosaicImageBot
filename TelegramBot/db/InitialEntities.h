@@ -25,4 +25,6 @@ SqliteTable getUnlimitedAccessUsersTable();
 
 SqliteTable getTokensTable();
 
+SqliteTable getRequestsTable();
+
 bool initLanguagesTable(DatabaseManager& dbManager);

@@ -18,4 +18,11 @@ public:
         ERROR_PHOTO_NOT_UPLOADED,
         ERROR_PHOTO_PROCESSING_FAILED
     };
+
+    enum class RequestStep {
+        REQUEST_STEP_WAITING,
+        REQUEST_STEP_IN_PROGRESS,
+        REQUEST_STEP_ERROR,
+        REQUEST_STEP_FINISHED
+    };
 };

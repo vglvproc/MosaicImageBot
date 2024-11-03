@@ -130,6 +130,19 @@ std::vector<SqliteTable> getInitialTables() {
         "token_id"
     );
 
+    SqliteTable requests(
+        "requests",
+        {
+            {"request_id", DT::TEXT},
+            {"session_id", DT::TEXT},
+            {"command", DT::TEXT},
+            {"request_step", DT::INTEGER},
+            {"adding_timestamp", DT::TEXT},
+            {"adding_datetime", DT::TEXT}
+        },
+        "request_id"
+    );
+
     tables.push_back(users);
     tables.push_back(languages);
     tables.push_back(categories);
@@ -140,6 +153,7 @@ std::vector<SqliteTable> getInitialTables() {
     tables.push_back(no_ads_users);
     tables.push_back(unlimited_access_users);
     tables.push_back(tokens);
+    tables.push_back(requests);
 
     return tables;
 }
@@ -311,6 +325,24 @@ SqliteTable getTokensTable() {
         "token_id"
     );
     return tokens;
+}
+
+SqliteTable getRequestsTable() {
+    using DT = SqliteTable::DataType;
+
+    SqliteTable requests(
+        "requests",
+        {
+            {"request_id", DT::TEXT},
+            {"session_id", DT::TEXT},
+            {"command", DT::TEXT},
+            {"request_step", DT::INTEGER},
+            {"adding_timestamp", DT::TEXT},
+            {"adding_datetime", DT::TEXT}
+        },
+        "request_id"
+    );
+    return requests;
 }
 
 bool initLanguagesTable(DatabaseManager& dbManager) {
