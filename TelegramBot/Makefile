@@ -30,7 +30,8 @@ SOURCES := main.cpp \
            commands/RemoveUnlimitedAccessUserCommand.cpp \
            commands/RunBotCommand.cpp \
            commands/SetCategoryCaptionCommand.cpp \
-           commands/SetTokenCommand.cpp
+           commands/SetTokenCommand.cpp \
+           requests/RequestsManager.cpp
 
 all: $(TARGET)
 

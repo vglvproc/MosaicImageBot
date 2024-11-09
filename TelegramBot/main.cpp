@@ -19,6 +19,7 @@
 #include "db/SqliteTable.h"
 #include "db/InitialEntities.h"
 #include "db/DatabaseManager.h"
+#include "requests/RequestsManager.h"
 
 static const char USAGE[] =
 R"(MosaicImageBot.
