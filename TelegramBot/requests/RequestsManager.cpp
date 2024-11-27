@@ -8,3 +8,6 @@ RequestsManager::RequestsManager(DatabaseManager *dbManager)
 void RequestsManager::setDatabaseManager(DatabaseManager *dbManager) {
     this->dbManager = dbManager;
 }
+
+void RequestsManager::process() {
+}

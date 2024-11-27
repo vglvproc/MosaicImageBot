@@ -3,6 +3,8 @@
 #include <iostream>
 #include <filesystem>
 #include <string>
+#include <thread>
+#include <chrono>
 #include "utils/Utils.h"
 #include "commands/RunBotCommand.h"
 #include "commands/AddCategoryCommand.h"
@@ -146,6 +148,13 @@ std::unique_ptr<Command> parseCommandLine(int argc, const char** argv) {
     return nullptr;
 }
 
+void processInLoop(RequestsManager& manager) {
+    while (true) {
+        manager.process();
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+}
+
 int main(int argc, const char** argv) {
     std::unique_ptr<Command> command = parseCommandLine(argc, argv);
 
@@ -165,6 +174,8 @@ int main(int argc, const char** argv) {
         std::cerr << "Failed to initialize languages table." << std::endl;
         return 1;
     }
+
+    RequestsManager manager(&dbMain);
 
     if (dynamic_cast<SetTokenCommand*>(command.get())) {
         SetTokenCommand* cmd = dynamic_cast<SetTokenCommand*>(command.get());
@@ -288,6 +299,7 @@ int main(int argc, const char** argv) {
                 return 1;
             }
         }
+        std::thread processingThread(processInLoop, std::ref(manager));
         cmd->setDatabaseManager(&dbMain);
         bool res = cmd->executeCommand();
         return res ? 0 : 1;

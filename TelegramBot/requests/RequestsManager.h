@@ -9,6 +9,7 @@ public:
     RequestsManager();
     RequestsManager(DatabaseManager *dbManager);
     void setDatabaseManager(DatabaseManager *dbManager);
+    void process();
 private:
     DatabaseManager *dbManager;
 };
