@@ -182,9 +182,13 @@ std::string SqliteTable::generateSelectAllSQL() const {
     return sql.str();
 }
 
-std::string SqliteTable::generateSelectSQL(const std::vector<FieldValue>& selectRow, const std::vector<FieldValue>& whereRow) const {
-    std::ostringstream sql;
+std::string SqliteTable::generateSelectSQL(const std::vector<FieldValue>& selectRow, const std::vector<FieldValue>& whereRow, const std::vector<FieldValue>& orderByRow, int top) const {
+std::ostringstream sql;
     sql << "SELECT ";
+
+    if (top != 0) {
+        sql << "LIMIT " << top << " ";
+    }
 
     if (selectRow.empty()) {
         sql << "*";
@@ -226,6 +230,16 @@ std::string SqliteTable::generateSelectSQL(const std::vector<FieldValue>& select
             }
             if (i < whereRow.size() - 1) {
                 sql << " AND ";
+            }
+        }
+    }
+
+    if (!orderByRow.empty()) {
+        sql << " ORDER BY ";
+        for (size_t i = 0; i < orderByRow.size(); ++i) {
+            sql << orderByRow[i].field.name;
+            if (i < orderByRow.size() - 1) {
+                sql << ", ";
             }
         }
     }
