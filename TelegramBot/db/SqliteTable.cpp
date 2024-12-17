@@ -186,10 +186,6 @@ std::string SqliteTable::generateSelectSQL(const std::vector<FieldValue>& select
 std::ostringstream sql;
     sql << "SELECT ";
 
-    if (top != 0) {
-        sql << "LIMIT " << top << " ";
-    }
-
     if (selectRow.empty()) {
         sql << "*";
     } else {
@@ -242,6 +238,10 @@ std::ostringstream sql;
                 sql << ", ";
             }
         }
+    }
+
+    if (top != 0) {
+        sql << " LIMIT " << top << " ";
     }
 
     return sql.str();
