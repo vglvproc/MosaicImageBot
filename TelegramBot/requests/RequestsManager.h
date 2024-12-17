@@ -3,6 +3,7 @@
 #include "../db/SqliteTable.h"
 #include "../db/InitialEntities.h"
 #include "../utils/Utils.h"
+#include "../workflow/BotWorkflow.h"
 
 class RequestsManager {
 public:

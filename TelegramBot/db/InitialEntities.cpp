@@ -138,7 +138,9 @@ std::vector<SqliteTable> getInitialTables() {
             {"command", DT::TEXT},
             {"request_step", DT::INTEGER},
             {"adding_timestamp", DT::TEXT},
-            {"adding_datetime", DT::TEXT}
+            {"adding_datetime", DT::TEXT},
+            {"last_access_timestamp", DT::TEXT},
+            {"last_access_datetime", DT::TEXT}
         },
         "request_id"
     );
@@ -338,7 +340,9 @@ SqliteTable getRequestsTable() {
             {"command", DT::TEXT},
             {"request_step", DT::INTEGER},
             {"adding_timestamp", DT::TEXT},
-            {"adding_datetime", DT::TEXT}
+            {"adding_datetime", DT::TEXT},
+            {"last_access_timestamp", DT::TEXT},
+            {"last_access_datetime", DT::TEXT}
         },
         "request_id"
     );
