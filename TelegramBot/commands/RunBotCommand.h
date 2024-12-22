@@ -1,13 +1,14 @@
 #pragma once
 #include "Command.h"
 #include <string>
+#include "../core/Listener.h"
 #include "../db/DatabaseManager.h"
 #include "../db/SqliteTable.h"
 #include "../db/InitialEntities.h"
 #include "../workflow/BotWorkflow.h"
 #include <tgbot/tgbot.h>
 
-class RunBotCommand : public Command {
+class RunBotCommand : public Command, public Listener {
 public:
     enum class PhotoProcessingStatus {
         STATUS_OK,
@@ -34,6 +35,7 @@ public:
     void setDoAddCaption(bool value);
     void setCaption(const std::string& value);
     bool executeCommand();
+    void update(const std::string& message) override;
 private:
     std::string getToken();
     void handleStartCommand(TgBot::Bot& bot, TgBot::Message::Ptr message, DatabaseManager* dbMain); // TODO: убрать аргумент dbMain, так как функция сейчас является частью класса с доступом к соответствующему полю

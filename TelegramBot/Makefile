@@ -31,6 +31,7 @@ SOURCES := main.cpp \
            commands/RunBotCommand.cpp \
            commands/SetCategoryCaptionCommand.cpp \
            commands/SetTokenCommand.cpp \
+           core/Subject.cpp \
            requests/RequestsManager.cpp
 
 all: $(TARGET)

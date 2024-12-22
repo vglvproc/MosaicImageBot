@@ -299,6 +299,8 @@ int main(int argc, const char** argv) {
                 return 1;
             }
         }
+        auto cmd_ptr = std::shared_ptr<RunBotCommand>(cmd);
+        manager.addListener(cmd_ptr);
         std::thread processingThread(processInLoop, std::ref(manager));
         cmd->setDatabaseManager(&dbMain);
         bool res = cmd->executeCommand();

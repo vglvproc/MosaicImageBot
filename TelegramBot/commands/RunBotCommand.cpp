@@ -101,11 +101,12 @@ bool addRequestToQueue(DatabaseManager* dbMain, const std::string& session_id, c
     row[0].value = request_id;
     row[1].value = session_id;
     row[2].value = command;
-    row[3].value = (int)BotWorkflow::RequestStep::REQUEST_STEP_WAITING;
-    row[4].value = std::to_string(current_timestamp);
-    row[5].value = getFormatTimestampWithMilliseconds(current_timestamp);
-    row[6].value = std::to_string(current_timestamp);
-    row[7].value = getFormatTimestampWithMilliseconds(current_timestamp);
+    row[3].value = imagePath;
+    row[4].value = (int)BotWorkflow::RequestStep::REQUEST_STEP_WAITING;
+    row[5].value = std::to_string(current_timestamp);
+    row[6].value = getFormatTimestampWithMilliseconds(current_timestamp);
+    row[7].value = std::to_string(current_timestamp);
+    row[8].value = getFormatTimestampWithMilliseconds(current_timestamp);
 
     std::string sqlCommand = requestsTable.generateInsertSQL(row, true);
     std::cout << sqlCommand << std::endl;
@@ -974,4 +975,8 @@ RunBotCommand::PhotoProcessingStatus RunBotCommand::handlePhotoUpload(TgBot::Bot
 
         bot.getApi().sendMessage(message->from->id, selectSizeMessage, nullptr, nullptr, keyboard);
     }
+}
+
+void RunBotCommand::update(const std::string& message) {
+    std::cout << "RunBotCommand received message: " << message << std::endl;
 }
