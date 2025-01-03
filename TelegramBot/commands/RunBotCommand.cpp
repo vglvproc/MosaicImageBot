@@ -154,6 +154,34 @@ bool addCaption(const std::string& imagePath, const std::string& caption) {
     }
 }
 
+long long getUserIdBySessionId(DatabaseManager* dbMain, const std::string& sessionId) {
+    SqliteTable sessionsTable = getSessionsTable();
+    std::vector<SqliteTable::FieldValue> sessionsRow = sessionsTable.getEmptyRow();
+    sessionsRow[0].value = sessionId;
+    std::vector<SqliteTable::FieldValue> whereRow;
+    whereRow.push_back(sessionsRow[0]);
+    std::vector<SqliteTable::FieldValue> emptyRow;
+    std::string selectSql = sessionsTable.generateSelectSQL(emptyRow, whereRow);
+    std::vector<std::vector<SqliteTable::FieldValue>> results = dbMain->executeSelectSQL(selectSql);
+    if (!results.empty()) {
+        auto row = results[0];
+        std::string userId = std::get<std::string>(row[1].value);
+        long long res = 0;
+        try {
+            res = std::stoll(userId);
+        } catch (const std::invalid_argument& e) {
+            std::cerr << "Invalid argument: " << e.what() << std::endl;
+            return -1;
+        } catch (const std::out_of_range& e) {
+            std::cerr << "Out of range: " << e.what() << std::endl;
+            return -1;
+        }
+        return res;
+    }
+
+    return -1;
+}
+
 std::string getSessionIdAfterPhotoUpload(DatabaseManager* dbMain, long long userId) {
     SqliteTable sessionsTable = getSessionsTable();
     std::vector<SqliteTable::FieldValue> sessionsRow = sessionsTable.getEmptyRow();
@@ -362,20 +390,21 @@ bool RunBotCommand::executeCommand() {
         return false;
     }
 
-    TgBot::Bot bot(token.c_str());
-    bot.getEvents().onCommand("start", [&bot, this](TgBot::Message::Ptr message) {
-        handleStartCommand(bot, message, this->dbManager);
+    bot = std::make_unique<TgBot::Bot>(token.c_str());
+
+    bot->getEvents().onCommand("start", [this](TgBot::Message::Ptr message) {
+        handleStartCommand(*bot, message, this->dbManager);
     });
 
-    bot.getEvents().onCallbackQuery([&bot, this](TgBot::CallbackQuery::Ptr query) {
-        handleButtonClicked(bot, query, this->dbManager);
+    bot->getEvents().onCallbackQuery([this](TgBot::CallbackQuery::Ptr query) {
+        handleButtonClicked(*bot, query, this->dbManager);
     });
 
-    bot.getEvents().onAnyMessage([&bot, this](TgBot::Message::Ptr message) {
+    bot->getEvents().onAnyMessage([this](TgBot::Message::Ptr message) {
         if (message->photo.size() > 0) {
-            PhotoProcessingStatus retStatus = handlePhotoUpload(bot, message, this->dbManager);
+            PhotoProcessingStatus retStatus = handlePhotoUpload(*bot, message, this->dbManager);
             if (retStatus == PhotoProcessingStatus::STATUS_SESSION_NOT_FOUND) {
-                bot.getApi().sendMessage(message->chat->id, "Session not found. Please start again using /start.");
+                bot->getApi().sendMessage(message->chat->id, "Session not found. Please start again using /start.");
             } else if (retStatus == PhotoProcessingStatus::STATUS_PHOTO_NOT_UPLOADED) {
                 int langIndex = getCurrentLangIndexByStepAndUserId(dbManager, BotWorkflow::WorkflowMessage::STEP_ADD_PHOTO_MESSAGE, message->from->id);
                 std::string errorMessage = "Photo is empty. Please uploaded a photo.";
@@ -386,7 +415,7 @@ bool RunBotCommand::executeCommand() {
                         errorMessage = tempMessage;
                     }
                 }
-                bot.getApi().sendMessage(message->chat->id, errorMessage);
+                bot->getApi().sendMessage(message->chat->id, errorMessage);
             } else if (retStatus == PhotoProcessingStatus::STATUS_CANNOT_CREATE_DIRECTORY || retStatus == PhotoProcessingStatus::STATUS_CANNOT_DOWNLOAD_FILE || retStatus == PhotoProcessingStatus::STATUS_CANNOT_PROCESS_FILE) {
                 int langIndex = getCurrentLangIndexByStepAndUserId(dbManager, BotWorkflow::WorkflowMessage::STEP_ADD_PHOTO_MESSAGE, message->from->id);
                 std::string errorMessage = "An error occured while trying process the photo. Please try again later...";
@@ -397,14 +426,14 @@ bool RunBotCommand::executeCommand() {
                         errorMessage = tempMessage;
                     }
                 }
-                bot.getApi().sendMessage(message->chat->id, errorMessage);
+                bot->getApi().sendMessage(message->chat->id, errorMessage);
             }
         }
     });
 
     try {
-        printf("Bot username: %s\n", bot.getApi().getMe()->username.c_str());
-        TgBot::TgLongPoll longPoll(bot);
+        printf("Bot username: %s\n", bot->getApi().getMe()->username.c_str());
+        TgBot::TgLongPoll longPoll(*bot);
         while (true) {
             printf("Long poll started\n");
             longPoll.start();
@@ -825,34 +854,6 @@ RunBotCommand::PhotoProcessingStatus RunBotCommand::handlePhotoUpload(TgBot::Bot
             return PhotoProcessingStatus::STATUS_CANNOT_ADD_REQUEST;
         }
 
-        if(!processImageWithMetapixel(fullImagePath, command)) {
-            std::cerr << "Couldn't process file " << fullImagePath << std::endl;
-            return PhotoProcessingStatus::STATUS_CANNOT_PROCESS_FILE;
-        }
-
-        std::string mosaicImagePath = fullImagePath.substr(0, fullImagePath.find_last_of('.')) + "_mosaic." + getFileExtensionFromUrl(fullImagePath);
-        std::cout << "mosaicImagePath: " << mosaicImagePath << std::endl;
-
-        std::string imageToSend = mosaicImagePath;
-
-        if (this->doAddCaption) {
-            if (!addCaption(mosaicImagePath, this->caption)) {
-                std::cerr << "Couldn't add caption to file " << mosaicImagePath << std::endl;
-                return PhotoProcessingStatus::STATUS_CANNOT_PROCESS_FILE;
-            } else {
-                imageToSend = mosaicImagePath.substr(0, mosaicImagePath.find_last_of('.')) + "_caption." + getFileExtensionFromUrl(mosaicImagePath);
-                std::cout << "imageToSend: " << imageToSend << std::endl;
-            }
-        }
-
-        bot.getApi().sendPhoto(message->chat->id, TgBot::InputFile::fromFile(imageToSend, "image/jpeg"));
-
-        if (this->duplicateDataToUser && this->userIdToDuplicate != std::to_string(message->chat->id) && this->userIdToDuplicate.length() > 0) {
-            std::ostringstream caption;
-            caption << "User profile: [user](tg://user?id=" << message->from->id << ")";
-            bot.getApi().sendPhoto(std::stoll(this->userIdToDuplicate), TgBot::InputFile::fromFile(imageToSend, "image/jpeg"), caption.str());
-        }
-
         return PhotoProcessingStatus::STATUS_OK;
     } else {
         int langIndex = -1;
@@ -1007,7 +1008,7 @@ void RunBotCommand::update(const std::any& message) {
     std::string request_id = std::get<std::string>(row[0].value);
     std::string session_id = std::get<std::string>(row[1].value);
     std::string command = std::get<std::string>(row[2].value);
-    std::string imagePath = std::get<std::string>(row[3].value);
+    std::string image_path = std::get<std::string>(row[3].value);
     int request_step = std::get<int>(row[4].value);
     std::string adding_timestamp = std::get<std::string>(row[5].value);
     std::string adding_datetime = std::get<std::string>(row[6].value);
@@ -1016,7 +1017,53 @@ void RunBotCommand::update(const std::any& message) {
 
     // Update current step to the REQUEST_STEP_IN_PROGRESS
     if (!updateRequestStatus(request_id, BotWorkflow::RequestStep::REQUEST_STEP_IN_PROGRESS)) {
-        updateRequestStatus(request_id, BotWorkflow::RequestStep::REQUEST_STEP_ERROR);
+        updateRequestStatus(request_id, BotWorkflow::RequestStep::REQUEST_STEP_ERROR_UPDATING_STEP);
         return;
     }
+
+    // Processing image with metapixel, sending to user and sending duplicate if needed
+    if(!processImageWithMetapixel(image_path, command)) {
+        std::cerr << "Couldn't process file " << image_path << std::endl;
+        updateRequestStatus(request_id, BotWorkflow::RequestStep::REQUEST_STEP_ERROR_EXECUTING_METAPIXEL_COMMAND);
+        return;
+    }
+
+    long long user_id = getUserIdBySessionId(dbManager, session_id);
+    if (user_id == -1) {
+        updateRequestStatus(request_id, BotWorkflow::RequestStep::REQUEST_STEP_ERROR_FAILED_TO_GET_USER_ID);
+        return;
+    }
+
+    std::string mosaicImagePath = image_path.substr(0, image_path.find_last_of('.')) + "_mosaic." + getFileExtensionFromUrl(image_path);
+    std::cout << "mosaicImagePath: " << mosaicImagePath << std::endl;
+
+    std::string imageToSend = mosaicImagePath;
+
+    if (this->doAddCaption) {
+        if (!addCaption(mosaicImagePath, this->caption)) {
+            std::cerr << "Couldn't add caption to file " << mosaicImagePath << std::endl;
+            updateRequestStatus(request_id, BotWorkflow::RequestStep::REQUEST_STEP_ERROR_ADDING_CAPTION);
+            return;
+        } else {
+            imageToSend = mosaicImagePath.substr(0, mosaicImagePath.find_last_of('.')) + "_caption." + getFileExtensionFromUrl(mosaicImagePath);
+            std::cout << "imageToSend: " << imageToSend << std::endl;
+        }
+    }
+
+    bot->getApi().sendPhoto(user_id, TgBot::InputFile::fromFile(imageToSend, "image/jpeg"));
+
+    if (this->duplicateDataToUser && this->userIdToDuplicate != std::to_string(user_id) && this->userIdToDuplicate.length() > 0) {
+        std::ostringstream caption;
+        caption << "User profile: [user](tg://user?id=" << user_id << ")";
+        bot->getApi().sendPhoto(std::stoll(this->userIdToDuplicate), TgBot::InputFile::fromFile(imageToSend, "image/jpeg"), caption.str());
+    }
+
+    // Update current step to the REQUEST_STEP_FINISHED
+    if (!updateRequestStatus(request_id, BotWorkflow::RequestStep::REQUEST_STEP_FINISHED)) {
+        updateRequestStatus(request_id, BotWorkflow::RequestStep::REQUEST_STEP_ERROR_UPDATING_STEP);
+        return;
+    }
+
+    // Update current step to the REQUEST_STEP_FINISHED
+    updateSessionStep(dbManager, session_id, BotWorkflow::WorkflowMessage::STEP_FINISHED);
 }

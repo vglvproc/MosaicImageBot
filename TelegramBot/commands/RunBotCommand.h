@@ -42,6 +42,7 @@ private:
     void handleStartCommand(TgBot::Bot& bot, TgBot::Message::Ptr message, DatabaseManager* dbMain); // TODO: убрать аргумент dbMain, так как функция сейчас является частью класса с доступом к соответствующему полю
     void handleButtonClicked(TgBot::Bot& bot, TgBot::CallbackQuery::Ptr query, DatabaseManager* dbMain);
     PhotoProcessingStatus handlePhotoUpload(TgBot::Bot& bot, TgBot::Message::Ptr message, DatabaseManager* dbMain);
+    std::unique_ptr<TgBot::Bot> bot;
     DatabaseManager *dbManager;
     bool duplicateDataToUser = false;
     bool doAddCaption = false;
