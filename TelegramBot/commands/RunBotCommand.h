@@ -35,7 +35,7 @@ public:
     void setDoAddCaption(bool value);
     void setCaption(const std::string& value);
     bool executeCommand();
-    void update(const std::string& message) override;
+    void update(const std::any& message) override;
 private:
     std::string getToken();
     void handleStartCommand(TgBot::Bot& bot, TgBot::Message::Ptr message, DatabaseManager* dbMain); // TODO: убрать аргумент dbMain, так как функция сейчас является частью класса с доступом к соответствующему полю

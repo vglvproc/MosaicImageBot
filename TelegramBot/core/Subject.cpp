@@ -8,7 +8,7 @@ void Subject::removeListenerInternal(const std::shared_ptr<Listener>& listener) 
     listeners.erase(std::remove(listeners.begin(), listeners.end(), listener), listeners.end());
 }
 
-void Subject::notifyListenersInternal(const std::string& message) {
+void Subject::notifyListenersInternal(const std::any& message) {
     for (const auto& listener : listeners) {
         listener->update(message);
     }
@@ -22,6 +22,6 @@ void Subject::removeListener(const std::shared_ptr<Listener>& listener) {
     removeListenerInternal(listener);
 }
 
-void Subject::notifyListeners(const std::string& message) {
+void Subject::notifyListeners(const std::any& message) {
     notifyListenersInternal(message);
 }

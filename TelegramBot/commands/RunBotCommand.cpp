@@ -977,6 +977,43 @@ RunBotCommand::PhotoProcessingStatus RunBotCommand::handlePhotoUpload(TgBot::Bot
     }
 }
 
-void RunBotCommand::update(const std::string& message) {
-    std::cout << "RunBotCommand received message: " << message << std::endl;
+void RunBotCommand::update(const std::any& message) {
+    SqliteTable requestsTable = getRequestsTable();
+    auto row = std::any_cast<std::vector<SqliteTable::FieldValue>>(message);
+    std::string request_id = std::get<std::string>(row[0].value);
+    std::string session_id = std::get<std::string>(row[1].value);
+    std::string command = std::get<std::string>(row[2].value);
+    std::string imagePath = std::get<std::string>(row[3].value);
+    int request_step = std::get<int>(row[4].value);
+    std::string adding_timestamp = std::get<std::string>(row[5].value);
+    std::string adding_datetime = std::get<std::string>(row[6].value);
+    std::string last_access_timestamp = std::get<std::string>(row[7].value);
+    std::string last_access_datetime = std::get<std::string>(row[8].value);
+
+    // Update current step to the REQUEST_STEP_IN_PROGRESS
+
+    // Create update row
+    long long current_timestamp = getCurrentTimestamp();
+    std::vector<SqliteTable::FieldValue> requestsRow = requestsTable.getEmptyRow();
+    requestsRow[4].value = (int)BotWorkflow::RequestStep::REQUEST_STEP_IN_PROGRESS;
+    requestsRow[7].value = std::to_string(current_timestamp);
+    requestsRow[8].value = getFormatTimestampWithMilliseconds(current_timestamp);
+    std::vector<SqliteTable::FieldValue> updateRow;
+    updateRow.push_back(requestsRow[4]);
+    updateRow.push_back(requestsRow[7]);
+    updateRow.push_back(requestsRow[8]);
+
+    // Create where clause row
+    requestsRow[0].value = request_id;
+    std::vector<SqliteTable::FieldValue> whereRow;
+    whereRow.push_back(requestsRow[0]);
+
+    std::string updateSql = requestsTable.generateUpdateSQL(updateRow, whereRow);
+    std::cout << "UPDATE SQL: " << updateSql << std::endl;
+    if (dbManager->executeSQL(updateSql)) {
+        std::cout << "Successfully updated request with id: " << request_id << std::endl;
+    } else {
+        std::cerr << "Failed to update request: " << request_id << std::endl;
+        return;
+    }
 }

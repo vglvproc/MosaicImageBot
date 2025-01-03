@@ -24,6 +24,6 @@ void RequestsManager::process() {
         auto res_row = results[0];
         std::string command = std::get<std::string>(res_row[2].value);
         std::string imagePath = std::get<std::string>(res_row[3].value);
-        notifyListeners(command);
+        notifyListeners(res_row);
     }
 }
