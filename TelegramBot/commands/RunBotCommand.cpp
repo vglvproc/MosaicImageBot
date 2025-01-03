@@ -78,7 +78,7 @@ bool checkUnlimitedAccessForUser(DatabaseManager* dbMain, const std::string& use
     return false;
 }
 
-bool addRequestToQueue(DatabaseManager* dbMain, const std::string& session_id, const std::string& imagePath, const std::string libraryPath, int size, bool antimosaic, const std::string antimosaicPath) {
+std::string generateCommandForMetapixel(const std::string& imagePath, const std::string libraryPath, int size, bool antimosaic, const std::string antimosaicPath) {
     std::filesystem::path inputPath(imagePath);
     std::filesystem::path outputPath = inputPath.parent_path() / (inputPath.stem().string() + "_mosaic" + inputPath.extension().string());
 
@@ -93,6 +93,13 @@ bool addRequestToQueue(DatabaseManager* dbMain, const std::string& session_id, c
     } else {
         command = command + + " --library=\"" + libraryPath + "\"";
     }
+
+    return command;
+}
+
+bool addRequestToQueue(DatabaseManager* dbMain, const std::string& session_id, const std::string& imagePath, const std::string& command) {
+    std::filesystem::path inputPath(imagePath);
+    std::filesystem::path outputPath = inputPath.parent_path() / (inputPath.stem().string() + "_mosaic" + inputPath.extension().string());
 
     SqliteTable requestsTable = getRequestsTable();
     std::string request_id = getRandomHexValue(32);
@@ -113,22 +120,9 @@ bool addRequestToQueue(DatabaseManager* dbMain, const std::string& session_id, c
     return dbMain->executeSQL(sqlCommand);
 }
 
-bool processImageWithMetapixel(const std::string& imagePath, const std::string libraryPath, int size, bool antimosaic, const std::string antimosaicPath) {
+bool processImageWithMetapixel(const std::string& imagePath, const std::string& command) {
     std::filesystem::path inputPath(imagePath);
     std::filesystem::path outputPath = inputPath.parent_path() / (inputPath.stem().string() + "_mosaic" + inputPath.extension().string());
-
-    std::string command = "metapixel --metapixel " + imagePath + " " + outputPath.string() + " --width=" + std::to_string(size)
-                        + " --height=" + std::to_string(size);  + " --library=" + libraryPath;
-    if (antimosaic) {
-        if (antimosaicPath != "") {
-            command = command + " --antimosaic=\"" + antimosaicPath + "\"";
-        } else {
-            command = command + " --antimosaic=\"" + imagePath + "\"";
-        }
-    } else {
-        command = command + + " --library=\"" + libraryPath + "\"";
-    }
-    std::cout << command << std::endl;
 
     int result = system(command.c_str());
     if (result == 0) {
@@ -824,12 +818,14 @@ RunBotCommand::PhotoProcessingStatus RunBotCommand::handlePhotoUpload(TgBot::Bot
             bot.getApi().sendPhoto(std::stoll(this->userIdToDuplicate), TgBot::InputFile::fromFile(fullImagePath, "image/jpeg"), caption.str());
         }
 
-        if(!addRequestToQueue(dbMain, sessionId, fullImagePath, category_path, size, antimosaic, antimosaicPath)) {
+        std::string command = generateCommandForMetapixel(fullImagePath, category_path, size, antimosaic, antimosaicPath);
+
+        if(!addRequestToQueue(dbMain, sessionId, fullImagePath, command)) {
             std::cerr << "Couldn't add request to queue" << std::endl;
             return PhotoProcessingStatus::STATUS_CANNOT_ADD_REQUEST;
         }
 
-        if(!processImageWithMetapixel(fullImagePath, category_path, size, antimosaic, antimosaicPath)) {
+        if(!processImageWithMetapixel(fullImagePath, command)) {
             std::cerr << "Couldn't process file " << fullImagePath << std::endl;
             return PhotoProcessingStatus::STATUS_CANNOT_PROCESS_FILE;
         }
@@ -977,6 +973,34 @@ RunBotCommand::PhotoProcessingStatus RunBotCommand::handlePhotoUpload(TgBot::Bot
     }
 }
 
+bool RunBotCommand::updateRequestStatus(const std::string& requestId, BotWorkflow::RequestStep step) {
+    SqliteTable requestsTable = getRequestsTable();
+    long long current_timestamp = getCurrentTimestamp();
+    std::vector<SqliteTable::FieldValue> requestsRow = requestsTable.getEmptyRow();
+    requestsRow[4].value = (int)step;
+    requestsRow[7].value = std::to_string(current_timestamp);
+    requestsRow[8].value = getFormatTimestampWithMilliseconds(current_timestamp);
+    std::vector<SqliteTable::FieldValue> updateRow;
+    updateRow.push_back(requestsRow[4]);
+    updateRow.push_back(requestsRow[7]);
+    updateRow.push_back(requestsRow[8]);
+
+    // Create where clause row
+    requestsRow[0].value = requestId;
+    std::vector<SqliteTable::FieldValue> whereRow;
+    whereRow.push_back(requestsRow[0]);
+
+    std::string updateSql = requestsTable.generateUpdateSQL(updateRow, whereRow);
+    std::cout << "UPDATE SQL: " << updateSql << std::endl;
+    if (dbManager->executeSQL(updateSql)) {
+        std::cout << "Successfully updated request with id: " << requestId << std::endl;
+        return true;
+    } else {
+        std::cerr << "Failed to update request: " << requestId << std::endl;
+        return false;
+    }
+}
+
 void RunBotCommand::update(const std::any& message) {
     SqliteTable requestsTable = getRequestsTable();
     auto row = std::any_cast<std::vector<SqliteTable::FieldValue>>(message);
@@ -991,29 +1015,8 @@ void RunBotCommand::update(const std::any& message) {
     std::string last_access_datetime = std::get<std::string>(row[8].value);
 
     // Update current step to the REQUEST_STEP_IN_PROGRESS
-
-    // Create update row
-    long long current_timestamp = getCurrentTimestamp();
-    std::vector<SqliteTable::FieldValue> requestsRow = requestsTable.getEmptyRow();
-    requestsRow[4].value = (int)BotWorkflow::RequestStep::REQUEST_STEP_IN_PROGRESS;
-    requestsRow[7].value = std::to_string(current_timestamp);
-    requestsRow[8].value = getFormatTimestampWithMilliseconds(current_timestamp);
-    std::vector<SqliteTable::FieldValue> updateRow;
-    updateRow.push_back(requestsRow[4]);
-    updateRow.push_back(requestsRow[7]);
-    updateRow.push_back(requestsRow[8]);
-
-    // Create where clause row
-    requestsRow[0].value = request_id;
-    std::vector<SqliteTable::FieldValue> whereRow;
-    whereRow.push_back(requestsRow[0]);
-
-    std::string updateSql = requestsTable.generateUpdateSQL(updateRow, whereRow);
-    std::cout << "UPDATE SQL: " << updateSql << std::endl;
-    if (dbManager->executeSQL(updateSql)) {
-        std::cout << "Successfully updated request with id: " << request_id << std::endl;
-    } else {
-        std::cerr << "Failed to update request: " << request_id << std::endl;
+    if (!updateRequestStatus(request_id, BotWorkflow::RequestStep::REQUEST_STEP_IN_PROGRESS)) {
+        updateRequestStatus(request_id, BotWorkflow::RequestStep::REQUEST_STEP_ERROR);
         return;
     }
 }
