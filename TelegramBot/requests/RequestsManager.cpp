@@ -1,3 +1,4 @@
+#include <iostream>
 #include "RequestsManager.h"
 
 RequestsManager::RequestsManager() {}
@@ -25,5 +26,15 @@ void RequestsManager::process() {
         std::string command = std::get<std::string>(res_row[2].value);
         std::string imagePath = std::get<std::string>(res_row[3].value);
         notifyListeners(res_row);
+    }
+
+    std::string selectErrorSql = "SELECT * FROM requests WHERE request_step BETWEEN 2 AND 5 ORDER BY last_access_timestamp LIMIT 1;";
+
+    auto error_results = dbManager->executeSelectSQL(selectErrorSql);
+    if (!error_results.empty()) {
+        auto res_row = results[0];
+        std::string command = std::get<std::string>(res_row[2].value);
+        std::string imagePath = std::get<std::string>(res_row[3].value);
+        std::cout << "Error result found! " << command << " " << imagePath << std::endl;
     }
 }

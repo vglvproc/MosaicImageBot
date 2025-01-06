@@ -155,6 +155,100 @@ void processInLoop(RequestsManager& manager) {
     }
 }
 
+long long readUserIdFromFile(const std::string& filePath) {
+    std::ifstream file(filePath);
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open file user_id.txt. Please ensure it exists in the program directory.");
+    }
+
+    std::string line;
+    std::getline(file, line);
+    file.close();
+
+    try {
+        return std::stoll(line);
+    } catch (const std::exception&) {
+        throw std::runtime_error("Invalid data in user_id.txt. Please ensure it contains a valid long long value.");
+    }
+}
+
+void addSessionsAndRequests(DatabaseManager* dbManager, int count) {
+    long long userId;
+    try {
+        userId = readUserIdFromFile("user_id.txt");
+    } catch (const std::runtime_error& e) {
+        std::cerr << e.what() << std::endl;
+        return;
+    }
+
+    std::ostringstream photoUrl;
+    photoUrl << "https://api.telegram.org/file/bot7240026553:AAEYF0GJeKzc0e5Vo_sgAKbZ6HDahId8WxA/photos/file_18.jpg";
+
+    for (int i = 0; i < count; i++) {
+        SqliteTable sessionsTable = getSessionsTable();
+        std::vector<SqliteTable::FieldValue> row = sessionsTable.getEmptyRow();
+        std::string sessionId = getRandomHexValue(32);
+        long long timestamp = getCurrentTimestamp();
+        BotWorkflow::WorkflowMessage currentStep = BotWorkflow::WorkflowMessage::STEP_WAITING_FOR_RESULT_MESSAGE;
+
+        row[0].value = sessionId;
+        row[1].value = std::to_string(userId);
+        row[2].value = (int)currentStep;
+        row[3].value = -1;
+        row[4].value = -1;
+        row[5].value = -1;
+        row[6].value = std::to_string(timestamp);
+        row[7].value = getFormatTimestampWithMilliseconds(timestamp);
+
+        std::string insertSql = sessionsTable.generateInsertSQL(row, true);
+        printf("INSERT SQL: %s\n", insertSql.c_str());
+        if (dbManager->executeSQL(insertSql)) {
+            std::cout << "Successfully inserted sessionId: " << sessionId << std::endl;
+        } else {
+            std::cerr << "Failed to insert session: " << sessionId << std::endl;
+        }
+
+        std::string file_timestamp = std::to_string(getCurrentTimestamp());
+
+        std::string filename = file_timestamp + "." + getFileExtensionFromUrl(photoUrl.str());
+        std::string fullImagePath = getCurrentWorkingDir() + std::string("/.temp/images/") + sessionId + "/" + filename;
+
+        if (!createDirectory(getCurrentWorkingDir() + std::string("/.temp/images/") + sessionId)) {
+            std::cerr << "Couldn't create directory " << getCurrentWorkingDir() + std::string("/.temp/images/") << std::endl;
+            return;
+        }
+
+        if (!downloadFile(photoUrl.str(), fullImagePath)) {
+            std::cerr << "Couldn't download file " << fullImagePath << std::endl;
+            return;
+        }
+
+        std::filesystem::path inputPath(fullImagePath);
+        std::filesystem::path outputPath = inputPath.parent_path() / (inputPath.stem().string() + "_mosaic" + inputPath.extension().string());
+
+        std::string command = "metapixel --metapixel /home/vadim/projects/MosaicImageBot/TelegramBot/.temp/images/" + sessionId + "/" + file_timestamp + ".jpg /home/vadim/projects/MosaicImageBot/TelegramBot/.temp/images/" 
+                            + sessionId + "/" + file_timestamp + "_mosaic.jpg --width=24 --height=24 --library=\"/home/vadim/images/mosaic/cats_prepared\"";
+
+        SqliteTable requestsTable = getRequestsTable();
+        std::string request_id = getRandomHexValue(32);
+        auto request_row = requestsTable.getEmptyRow();
+        long long current_timestamp = getCurrentTimestamp();
+        request_row[0].value = request_id;
+        request_row[1].value = sessionId;
+        request_row[2].value = command;
+        request_row[3].value = fullImagePath;
+        request_row[4].value = (int)BotWorkflow::RequestStep::REQUEST_STEP_WAITING;
+        request_row[5].value = std::to_string(current_timestamp);
+        request_row[6].value = getFormatTimestampWithMilliseconds(current_timestamp);
+        request_row[7].value = std::to_string(current_timestamp);
+        request_row[8].value = getFormatTimestampWithMilliseconds(current_timestamp);
+
+        std::string sqlCommand = requestsTable.generateInsertSQL(request_row, true);
+        std::cout << sqlCommand << std::endl;
+        dbManager->executeSQL(sqlCommand);
+    }
+}
+
 int main(int argc, const char** argv) {
     std::unique_ptr<Command> command = parseCommandLine(argc, argv);
 
@@ -288,6 +382,7 @@ int main(int argc, const char** argv) {
         cmd->executeCommand();
         return 0;
     } else if (dynamic_cast<RunBotCommand*>(command.get())) {
+        addSessionsAndRequests(&dbMain, 100);
         RunBotCommand* cmd = dynamic_cast<RunBotCommand*>(command.get());
         if (!checkMetapixelAvailability()) {
             std::cout << "metapixel is not available in your system." << std::endl;
