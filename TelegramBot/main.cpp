@@ -80,6 +80,21 @@ bool checkFfmpegAvailability() {
     return (returnCode == 0 && result.find("version") != std::string::npos);
 }
 
+bool checkWgetAvailability() {
+    std::array<char, 512> buffer;
+    std::string result;
+    FILE* pipe = popen("wget --version", "r");
+    if (!pipe) throw std::runtime_error("popen() failed!");
+
+    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+        result += buffer.data();
+    }
+
+    int returnCode = pclose(pipe);
+
+    return (returnCode == 0 && result.find("GNU Wget") != std::string::npos);
+}
+
 std::unique_ptr<Command> parseCommandLine(int argc, const char** argv) {
     try {
         std::map<std::string, docopt::value> args = docopt::docopt(USAGE,
@@ -298,6 +313,10 @@ int main(int argc, const char** argv) {
                 std::cout << "ffmpeg is not available in your system." << std::endl;
                 return 1;
             }
+        }
+        if (!checkWgetAvailability()) {
+            std::cout << "wget is not available in your system." << std::endl;
+            return 1;
         }
         auto cmd_ptr = std::shared_ptr<RunBotCommand>(cmd);
         manager.addListener(cmd_ptr);
