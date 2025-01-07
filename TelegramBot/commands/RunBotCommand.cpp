@@ -182,6 +182,27 @@ long long getUserIdBySessionId(DatabaseManager* dbMain, const std::string& sessi
     return -1;
 }
 
+BotWorkflow::WorkflowMessage getSessionStatus(DatabaseManager* dbMain, const std::string& sessionId, bool* session_found) {
+    SqliteTable sessionsTable = getSessionsTable();
+    std::vector<SqliteTable::FieldValue> sessionsRow = sessionsTable.getEmptyRow();
+    sessionsRow[0].value = sessionId;
+    std::vector<SqliteTable::FieldValue> whereRow;
+    whereRow.push_back(sessionsRow[0]);
+    std::vector<SqliteTable::FieldValue> emptyRow;
+    std::string selectSql = sessionsTable.generateSelectSQL(emptyRow, whereRow);
+    std::cout << "SELECT SQL: " << selectSql << std::endl;
+    std::vector<std::vector<SqliteTable::FieldValue>> results = dbMain->executeSelectSQL(selectSql);
+    if (!results.empty()) {
+        *session_found = true;
+        auto row = results[0];
+        int step = std::get<int>(row[2].value);
+        return (BotWorkflow::WorkflowMessage)step;
+    }
+    *session_found = false;
+
+    return (BotWorkflow::WorkflowMessage)0;
+}
+
 std::string getSessionIdAfterPhotoUpload(DatabaseManager* dbMain, long long userId) {
     SqliteTable sessionsTable = getSessionsTable();
     std::vector<SqliteTable::FieldValue> sessionsRow = sessionsTable.getEmptyRow();
@@ -461,10 +482,32 @@ void RunBotCommand::handleStartCommand(TgBot::Bot& bot, TgBot::Message::Ptr mess
     // Create session
     // TODO: Need to wrap into while cycle, in the case (which should occurs extremely rarely) if sessionId already exists in the table
     // Or find the another way to guarantee uniqueness
+
+    long long userId = message->from->id;
+
     SqliteTable sessionsTable = getSessionsTable();
+
+    // Create update row
+    std::vector<SqliteTable::FieldValue> sessionsRow = sessionsTable.getEmptyRow();
+    sessionsRow[2].value = (int)BotWorkflow::WorkflowMessage::STEP_DISABLED;
+    std::vector<SqliteTable::FieldValue> updateRow;
+    updateRow.push_back(sessionsRow[2]);
+
+    // Create where clause row
+    sessionsRow[1].value = std::to_string(userId);
+    std::vector<SqliteTable::FieldValue> whereRow;
+    whereRow.push_back(sessionsRow[1]);
+
+    std::string updateSql = sessionsTable.generateUpdateSQL(updateRow, whereRow);
+    std::cout << "UPDATE SQL: " << updateSql << std::endl;
+    if (dbMain->executeSQL(updateSql)) {
+        std::cout << "Successfully disabled all sessions for user with id " << userId << std::endl;
+    } else {
+        std::cerr << "Failed to disable all sessions for user with id " << userId << std::endl;
+    }
+
     std::vector<SqliteTable::FieldValue> row = sessionsTable.getEmptyRow();
     std::string sessionId = getRandomHexValue(32);
-    long long userId = message->from->id;
     long long timestamp = getCurrentTimestamp();
     BotWorkflow::WorkflowMessage currentStep = BotWorkflow::WorkflowMessage::STEP_SELECT_LANGUAGE;
 
@@ -509,12 +552,19 @@ void RunBotCommand::handleStartCommand(TgBot::Bot& bot, TgBot::Message::Ptr mess
 
 void RunBotCommand::handleButtonClicked(TgBot::Bot& bot, TgBot::CallbackQuery::Ptr query, DatabaseManager* dbMain) {
     std::string data = query->data;
+    bool session_found = false;
     if (data.rfind("lang_", 0) == 0) {
         size_t firstUnderscore = data.find('_');
         size_t secondUnderscore = data.find('_', firstUnderscore + 1);
 
         std::string sessionId = data.substr(firstUnderscore + 1, secondUnderscore - firstUnderscore - 1);
         int langIndex = std::stoi(data.substr(secondUnderscore + 1));
+
+        BotWorkflow::WorkflowMessage currentStep = getSessionStatus(dbMain, sessionId, &session_found);
+        if (!session_found || currentStep == BotWorkflow::WorkflowMessage::STEP_DISABLED) {
+            bot.getApi().sendMessage(query->message->chat->id, "Session not found. Please start again using /start.");
+            return;
+        }
 
         updateSessionLanguage(dbMain, sessionId, langIndex);
 
@@ -573,6 +623,12 @@ void RunBotCommand::handleButtonClicked(TgBot::Bot& bot, TgBot::CallbackQuery::P
         std::string sessionId = data.substr(firstUnderscore + 1, secondUnderscore - firstUnderscore - 1);
         int langIndex = std::stoi(data.substr(secondUnderscore + 1, thirdUnderscore - secondUnderscore - 1));
 
+        BotWorkflow::WorkflowMessage currentStep = getSessionStatus(dbMain, sessionId, &session_found);
+        if (!session_found || currentStep == BotWorkflow::WorkflowMessage::STEP_DISABLED) {
+            bot.getApi().sendMessage(query->message->chat->id, "Session not found. Please start again using /start.");
+            return;
+        }
+
         bool getMessage = false;
         std::string selectModeMessage = getMessageByTypeAndLang(dbMain, BotWorkflow::WorkflowMessage::STEP_SELECT_ANTIMOSAIC_MODE, langIndex, &getMessage);
         if (!getMessage) {
@@ -615,6 +671,12 @@ void RunBotCommand::handleButtonClicked(TgBot::Bot& bot, TgBot::CallbackQuery::P
         std::string sessionId = data.substr(firstUnderscore + 1, secondUnderscore - firstUnderscore - 1);
         int langIndex = std::stoi(data.substr(secondUnderscore + 1, thirdUnderscore - secondUnderscore - 1));
 
+        BotWorkflow::WorkflowMessage currentStep = getSessionStatus(dbMain, sessionId, &session_found);
+        if (!session_found || currentStep == BotWorkflow::WorkflowMessage::STEP_DISABLED) {
+            bot.getApi().sendMessage(query->message->chat->id, "Session not found. Please start again using /start.");
+            return;
+        }
+
         bool getMessage = false;
         std::string uploadPhotoMessage = getMessageByTypeAndLang(dbMain, BotWorkflow::WorkflowMessage::STEP_ADD_PHOTO_MESSAGE, langIndex, &getMessage);
         if (!getMessage) {
@@ -630,6 +692,12 @@ void RunBotCommand::handleButtonClicked(TgBot::Bot& bot, TgBot::CallbackQuery::P
         std::string sessionId = data.substr(firstUnderscore + 1, secondUnderscore - firstUnderscore - 1);
         int langIndex = std::stoi(data.substr(secondUnderscore + 1, thirdUnderscore - secondUnderscore - 1));
         int themeIndex = std::stoi(data.substr(thirdUnderscore + 1));
+
+        BotWorkflow::WorkflowMessage currentStep = getSessionStatus(dbMain, sessionId, &session_found);
+        if (!session_found || currentStep == BotWorkflow::WorkflowMessage::STEP_DISABLED) {
+            bot.getApi().sendMessage(query->message->chat->id, "Session not found. Please start again using /start.");
+            return;
+        }
 
         updateSessionTheme(dbMain, sessionId, themeIndex);
 
@@ -714,6 +782,12 @@ void RunBotCommand::handleButtonClicked(TgBot::Bot& bot, TgBot::CallbackQuery::P
         std::string sessionId = data.substr(firstUnderscore + 1, secondUnderscore - firstUnderscore - 1);
         int langIndex = std::stoi(data.substr(secondUnderscore + 1, thirdUnderscore - secondUnderscore - 1));
         int size = std::stoi(data.substr(thirdUnderscore + 1));
+
+        BotWorkflow::WorkflowMessage currentStep = getSessionStatus(dbMain, sessionId, &session_found);
+        if (!session_found || currentStep == BotWorkflow::WorkflowMessage::STEP_DISABLED) {
+            bot.getApi().sendMessage(query->message->chat->id, "Session not found. Please start again using /start.");
+            return;
+        }
 
         updateSessionSize(dbMain, sessionId, size);
 
