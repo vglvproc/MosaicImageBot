@@ -32,7 +32,8 @@ SOURCES := main.cpp \
            commands/SetCategoryCaptionCommand.cpp \
            commands/SetTokenCommand.cpp \
            core/Subject.cpp \
-           requests/RequestsManager.cpp
+           requests/RequestsManager.cpp \
+           log/Logger.cpp
 
 all: $(TARGET)
 
