@@ -1,5 +1,6 @@
 #include "InitialEntities.h"
 #include "SqliteTable.h"
+#include "../log/Logger.h"
 #include "../utils/Utils.h"
 #include "../workflow/BotWorkflow.h"
 #include <iostream>
@@ -374,7 +375,7 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
         std::string insertSQL = table.generateInsertSQL(row, true);
 
         if (!dbManager.executeSQL(insertSQL)) {
-            std::cerr << "Failed to insert data into languages table: " << name << std::endl;
+            Logger::log(LogSource::Database, std::cerr, std::string("Failed to insert data into languages table: ") + name);
             return false;
         }
     }
@@ -405,7 +406,7 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
         std::string insertSQL = table.generateInsertSQL(row, true);
 
         if (!dbManager.executeSQL(insertSQL)) {
-            std::cerr << "Failed to insert data into messages table: " << message << std::endl;
+            Logger::log(LogSource::Database, std::cerr, std::string("Failed to insert data into messages table: ") + message);
             return false;
         }
         index++;
@@ -432,10 +433,9 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
         row.push_back({{"adding_datetime", SqliteTable::DataType::TEXT}, getFormatTimestampWithMilliseconds(current_timestamp)});
 
         std::string insertSQL = table.generateInsertSQL(row, true);
-        std::cout << insertSQL << std::endl;
 
         if (!dbManager.executeSQL(insertSQL)) {
-            std::cerr << "Failed to insert data into messages table: " << message << std::endl;
+            Logger::log(LogSource::Database, std::cerr, std::string("Failed to insert data into messages table: ") + message);
             return false;
         }
         index++;
@@ -462,10 +462,9 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
         row.push_back({{"adding_datetime", SqliteTable::DataType::TEXT}, getFormatTimestampWithMilliseconds(current_timestamp)});
 
         std::string insertSQL = table.generateInsertSQL(row, true);
-        std::cout << insertSQL << std::endl;
 
         if (!dbManager.executeSQL(insertSQL)) {
-            std::cerr << "Failed to insert data into messages table: " << message << std::endl;
+            Logger::log(LogSource::Database, std::cerr, std::string("Failed to insert data into messages table: ") + message);
             return false;
         }
         index++;
@@ -492,10 +491,9 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
         row.push_back({{"adding_datetime", SqliteTable::DataType::TEXT}, getFormatTimestampWithMilliseconds(current_timestamp)});
 
         std::string insertSQL = table.generateInsertSQL(row, true);
-        std::cout << insertSQL << std::endl;
 
         if (!dbManager.executeSQL(insertSQL)) {
-            std::cerr << "Failed to insert data into messages table: " << message << std::endl;
+            Logger::log(LogSource::Database, std::cerr, std::string("Failed to insert data into messages table: ") + message);
             return false;
         }
         index++;
@@ -522,10 +520,9 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
         row.push_back({{"adding_datetime", SqliteTable::DataType::TEXT}, getFormatTimestampWithMilliseconds(current_timestamp)});
 
         std::string insertSQL = table.generateInsertSQL(row, true);
-        std::cout << insertSQL << std::endl;
 
         if (!dbManager.executeSQL(insertSQL)) {
-            std::cerr << "Failed to insert data into messages table: " << message << std::endl;
+            Logger::log(LogSource::Database, std::cerr, std::string("Failed to insert data into messages table: ") + message);
             return false;
         }
         index++;
@@ -552,10 +549,9 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
         row.push_back({{"adding_datetime", SqliteTable::DataType::TEXT}, getFormatTimestampWithMilliseconds(current_timestamp)});
 
         std::string insertSQL = table.generateInsertSQL(row, true);
-        std::cout << insertSQL << std::endl;
 
         if (!dbManager.executeSQL(insertSQL)) {
-            std::cerr << "Failed to insert data into messages table: " << message << std::endl;
+            Logger::log(LogSource::Database, std::cerr, std::string("Failed to insert data into messages table: ") + message);
             return false;
         }
         index++;
@@ -584,7 +580,7 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
         std::string insertSQL = table.generateInsertSQL(row, true);
 
         if (!dbManager.executeSQL(insertSQL)) {
-            std::cerr << "Failed to insert data into messages table: " << message << std::endl;
+            Logger::log(LogSource::Database, std::cerr, std::string("Failed to insert data into messages table: ") + message);
             return false;
         }
         index++;
@@ -613,7 +609,7 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
         std::string insertSQL = table.generateInsertSQL(row, true);
 
         if (!dbManager.executeSQL(insertSQL)) {
-            std::cerr << "Failed to insert data into messages table: " << message << std::endl;
+            Logger::log(LogSource::Database, std::cerr, std::string("Failed to insert data into messages table: ") + message);
             return false;
         }
         index++;
@@ -642,7 +638,7 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
         std::string insertSQL = table.generateInsertSQL(row, true);
 
         if (!dbManager.executeSQL(insertSQL)) {
-            std::cerr << "Failed to insert data into messages table: " << message << std::endl;
+            Logger::log(LogSource::Database, std::cerr, std::string("Failed to insert data into messages table: ") + message);
             return false;
         }
         index++;
@@ -671,7 +667,7 @@ bool initLanguagesTable(DatabaseManager& dbManager) {
         std::string insertSQL = table.generateInsertSQL(row, true);
 
         if (!dbManager.executeSQL(insertSQL)) {
-            std::cerr << "Failed to insert data into messages table: " << message << std::endl;
+            Logger::log(LogSource::Database, std::cerr, std::string("Failed to insert data into messages table: ") + message);
             return false;
         }
         index++;

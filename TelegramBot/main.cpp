@@ -21,6 +21,7 @@
 #include "db/SqliteTable.h"
 #include "db/InitialEntities.h"
 #include "db/DatabaseManager.h"
+#include "log/Logger.h"
 #include "requests/RequestsManager.h"
 
 static const char USAGE[] =
@@ -186,7 +187,7 @@ int main(int argc, const char** argv) {
     }
 
     if(!initLanguagesTable(dbMain)) {
-        std::cerr << "Failed to initialize languages table." << std::endl;
+        Logger::log(LogSource::Database, std::cerr, "Failed to initialize languages table.");
         return 1;
     }
 
@@ -305,17 +306,17 @@ int main(int argc, const char** argv) {
     } else if (dynamic_cast<RunBotCommand*>(command.get())) {
         RunBotCommand* cmd = dynamic_cast<RunBotCommand*>(command.get());
         if (!checkMetapixelAvailability()) {
-            std::cout << "metapixel is not available in your system." << std::endl;
+            Logger::log(LogSource::Main, std::cerr, "metapixel is not available in your system.");
             return 1;
         }
         if (cmd->getDoAddCaption()) {
             if (!checkFfmpegAvailability()) {
-                std::cout << "ffmpeg is not available in your system." << std::endl;
+                Logger::log(LogSource::Main, std::cerr, "ffmpeg is not available in your system.");
                 return 1;
             }
         }
         if (!checkWgetAvailability()) {
-            std::cout << "wget is not available in your system." << std::endl;
+            Logger::log(LogSource::Main, std::cerr, "wget is not available in your system.");
             return 1;
         }
         auto cmd_ptr = std::shared_ptr<RunBotCommand>(cmd);

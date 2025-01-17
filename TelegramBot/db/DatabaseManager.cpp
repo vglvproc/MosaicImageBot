@@ -1,4 +1,5 @@
 #include "DatabaseManager.h"
+#include "../log/Logger.h"
 #include <iostream>
 #include <filesystem>
 
@@ -12,7 +13,7 @@ DatabaseManager::DatabaseManager(const std::string& dbPath, bool pragmaTimeout, 
     bool dbFileExists = std::filesystem::exists(dbPath_);
 
     if (sqlite3_open(dbPath_.c_str(), &db_) != SQLITE_OK) {
-        std::cerr << "Error opening database: " << sqlite3_errmsg(db_) << std::endl;
+        Logger::log(LogSource::Database, std::cerr, std::string("Error opening database: ") + sqlite3_errmsg(db_));
         sqlite3_close(db_);
         db_ = nullptr;
         lock.unlock();
@@ -30,7 +31,7 @@ bool DatabaseManager::initializeDatabase(bool walMode, bool busyTimeout) {
     // Here you might include code to set initial database parameters, such as PRAGMA statements.
     // PRAGMA commands can be used to improve performance or manage database behavior.
     if (sqlite3_exec(db_, "PRAGMA foreign_keys = ON;", nullptr, nullptr, nullptr) != SQLITE_OK) {
-        std::cerr << "Error setting PRAGMA foreign_keys: " << sqlite3_errmsg(db_) << std::endl;
+        Logger::log(LogSource::Database, std::cerr, std::string("Error setting PRAGMA foreign_keys: ") + sqlite3_errmsg(db_));
         sqlite3_close(db_);
         db_ = nullptr;
         return false;
@@ -39,7 +40,7 @@ bool DatabaseManager::initializeDatabase(bool walMode, bool busyTimeout) {
     if (busyTimeout) {
         std::string pragma_query = "PRAGMA busy_timeout = " + std::to_string(busyTimeout_) + ";";
         if (sqlite3_exec(db_, pragma_query.c_str(), nullptr, nullptr, nullptr) != SQLITE_OK) {
-            std::cerr << "Error setting timeout: " << sqlite3_errmsg(db_) << std::endl;
+            Logger::log(LogSource::Database, std::cerr, std::string("Error setting timeout: ") + sqlite3_errmsg(db_));
             sqlite3_close(db_);
             db_ = nullptr;
             return false;
@@ -48,7 +49,7 @@ bool DatabaseManager::initializeDatabase(bool walMode, bool busyTimeout) {
 
     if (walMode) {
         if (sqlite3_exec(db_, "PRAGMA journal_mode = WAL;", nullptr, nullptr, nullptr) != SQLITE_OK) {
-            std::cerr << "Error setting WAL mode: " << sqlite3_errmsg(db_) << std::endl;
+            Logger::log(LogSource::Database, std::cerr, std::string("Error setting WAL mode: ") + sqlite3_errmsg(db_));
             sqlite3_close(db_);
             db_ = nullptr;
             return false;
@@ -68,10 +69,10 @@ DatabaseManager::TableCreationResult DatabaseManager::checkAndCreateTable(const 
     if (!result) {
         std::string createTableSql = table.createTableSQL();
         if (executeSQL(createTableSql)) {
-            std::cout << "Table '" << table.getName() << "' has been successfully created." << std::endl;
+            Logger::log(LogSource::Database, std::cout, std::string("Table '") + table.getName() + "' has been successfully created.");
             return DatabaseManager::TableCreationResult::NOT_EXISTED_AND_CREATED;
         } else {
-            std::cerr << "Failed to create table '" << table.getName() << "'." << std::endl;
+            Logger::log(LogSource::Database, std::cerr, std::string("Failed to create table '") + table.getName() + "'.");
             return DatabaseManager::TableCreationResult::ERROR;
         }
     } else {
@@ -80,22 +81,22 @@ DatabaseManager::TableCreationResult DatabaseManager::checkAndCreateTable(const 
             return DatabaseManager::TableCreationResult::ERROR;
         }
         if (result) {
-            std::cout << "Table '" << table.getName() << "' already exists." << std::endl;
+            Logger::log(LogSource::Database, std::cerr, std::string("Table '") + table.getName() + "' already exists.");
             return DatabaseManager::TableCreationResult::ALREADY_EXISTS;
         } else {
             std::string dropTableSql = table.generateDropTableSQL();
             if (executeSQL(dropTableSql)) {
-                std::cout << "Table '" << table.getName() << "' has been successfully removed." << std::endl;
+                Logger::log(LogSource::Database, std::cout, std::string("Table '") + table.getName() + "' has been successfully removed.");
                 std::string createTableSql = table.createTableSQL();
                 if (executeSQL(createTableSql)) {
-                    std::cout << "Table '" << table.getName() << "' has been successfully created." << std::endl;
+                    Logger::log(LogSource::Database, std::cout, std::string("Table '") + table.getName() + "' has been successfully created.");
                     return DatabaseManager::TableCreationResult::EXISTED_AND_RECREATED;
                 } else {
-                    std::cerr << "Failed to create table '" << table.getName() << "'." << std::endl;
+                    Logger::log(LogSource::Database, std::cerr, std::string("Failed to create table '") + table.getName() + "'.");
                     return DatabaseManager::TableCreationResult::ERROR;
                 }
             } else {
-                std::cerr << "Failed to remove table '" << table.getName() << "'." << std::endl;
+                Logger::log(LogSource::Database, std::cerr, std::string("Failed to remove table '") + table.getName() + "'.");
                 return DatabaseManager::TableCreationResult::ERROR;
             }
         }
@@ -116,7 +117,7 @@ bool DatabaseManager::tableExists(const std::string& tableName, bool& errorOccur
     };
 
     if (sqlite3_exec(db_, sql.c_str(), callback, &exists, &errMsg) != SQLITE_OK) {
-        std::cerr << "Error checking table existence: " << errMsg << std::endl;
+        Logger::log(LogSource::Database, std::cerr, std::string("Error checking table existence: ") + errMsg);
         sqlite3_free(errMsg);
         errorOccured = true;
         return false;
@@ -132,7 +133,7 @@ bool DatabaseManager::checkTableStructure(const SqliteTable& expectedTable, bool
     errorOccured = false;
 
     if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
-        std::cerr << "Error preparing statement: " << sqlite3_errmsg(db_) << std::endl;
+        Logger::log(LogSource::Database, std::cerr, std::string("Error preparing statement: ") + sqlite3_errmsg(db_));
         errorOccured = true;
         return false;
     }
@@ -169,20 +170,20 @@ bool DatabaseManager::checkTableStructure(const SqliteTable& expectedTable, bool
     lock.unlock();
 
     if (actualPrimaryKey != expectedTable.getPrimaryKey()) {
-        std::cerr << "Primary key mismatch. Expected: " << expectedTable.getPrimaryKey() << ", Actual: " << actualPrimaryKey << std::endl;
+        Logger::log(LogSource::Database, std::cerr, std::string("Primary key mismatch. Expected: ") + expectedTable.getPrimaryKey() + ", Actual: " + actualPrimaryKey);
         return false;
     }
 
     const auto& expectedFields = expectedTable.getFields();
     if (actualFields.size() != expectedFields.size()) {
-        std::cerr << "Field count mismatch. Expected: " << expectedFields.size() << ", Actual: " << actualFields.size() << std::endl;
+        Logger::log(LogSource::Database, std::cerr, std::string("Field count mismatch. Expected: ") + std::to_string(expectedFields.size()) + ", Actual: " + std::to_string(actualFields.size()));
         return false;
     }
 
     for (size_t i = 0; i < expectedFields.size(); ++i) {
         if (expectedFields[i].name != actualFields[i].name || expectedFields[i].type != actualFields[i].type) {
-            std::cerr << "Field mismatch at position " << i << ". Expected: " << expectedFields[i].name << " " << SqliteTable::dataTypeToString(expectedFields[i].type) << ", Actual: " << actualFields[i].name <<
-                      " " << SqliteTable::dataTypeToString(actualFields[i].type) << std::endl;
+            Logger::log(LogSource::Database, std::cerr, std::string("Field mismatch at position ") + std::to_string(i) + ". Expected: " + expectedFields[i].name + " " + SqliteTable::dataTypeToString(expectedFields[i].type) + ", Actual: " + actualFields[i].name +
+                        " " + SqliteTable::dataTypeToString(actualFields[i].type));
             return false;
         }
     }
@@ -194,8 +195,8 @@ bool DatabaseManager::executeSQL(const std::string& sql) {
     std::unique_lock<std::mutex> lock(dbMutex_);
     char* errMsg = nullptr;
     if (sqlite3_exec(db_, sql.c_str(), nullptr, nullptr, &errMsg) != SQLITE_OK) {
-        std::cerr << "SQL error: " << errMsg << std::endl;
-        std::cerr << sql << std::endl;
+        Logger::log(LogSource::Database, std::cerr, std::string("SQL error: ") + errMsg);
+        Logger::log(LogSource::Database, std::cerr, sql);
         sqlite3_free(errMsg);
         return false;
     }
@@ -207,10 +208,10 @@ std::vector<std::vector<SqliteTable::FieldValue>> DatabaseManager::executeSelect
     sqlite3_stmt* stmt;
     std::vector<std::vector<SqliteTable::FieldValue>> results;
 
-    std::cout << sql << std::endl;
+    Logger::log(LogSource::Database, std::cout, sql);
 
     if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
-        std::cerr << "Error preparing statement: " << sqlite3_errmsg(db_) << std::endl;
+        Logger::log(LogSource::Database, std::cerr, std::string("Error preparing statement: ") + sqlite3_errmsg(db_));
         return results;
     }
 

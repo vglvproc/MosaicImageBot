@@ -1,6 +1,7 @@
 #include <iostream>
 #include <filesystem>
 #include "RunBotCommand.h"
+#include "../log/Logger.h"
 #include "../utils/Utils.h"
 #include "../workflow/BotWorkflow.h"
 
@@ -116,7 +117,7 @@ bool addRequestToQueue(DatabaseManager* dbMain, const std::string& session_id, c
     row[8].value = getFormatTimestampWithMilliseconds(current_timestamp);
 
     std::string sqlCommand = requestsTable.generateInsertSQL(row, true);
-    std::cout << sqlCommand << std::endl;
+    Logger::log(LogSource::Database, std::cout, sqlCommand);
     return dbMain->executeSQL(sqlCommand);
 }
 
@@ -126,10 +127,10 @@ bool processImageWithMetapixel(const std::string& imagePath, const std::string& 
 
     int result = system(command.c_str());
     if (result == 0) {
-        std::cout << "Image processed successfully: " << outputPath.string() << std::endl;
+        Logger::log(LogSource::Bot, std::cout, std::string("Image processed successfully: ") + outputPath.string());
         return true;
     } else {
-        std::cerr << "Failed to process image with metapixel." << std::endl;
+        Logger::log(LogSource::Bot, std::cerr, "Failed to process image with metapixel.");
         return false;
     }
 }
@@ -142,14 +143,14 @@ bool addCaption(const std::string& imagePath, const std::string& caption) {
                         + "':fontcolor=black:fontsize=24:box=1:boxcolor=white@0.5:boxborderw=5:x=10:y=h-th-10\" "
                         + outputPath.string();
 
-    std::cout << "Executing command: " << command << std::endl;
+    Logger::log(LogSource::Bot, std::cout, std::string("Executing command: ") + command);
 
     int result = system(command.c_str());
     if (result == 0) {
-        std::cout << "Caption added successfully: " << outputPath.string() << std::endl;
+        Logger::log(LogSource::Bot, std::cout, std::string("Caption added successfully: ") + outputPath.string());
         return true;
     } else {
-        std::cerr << "Failed to add caption to the image." << std::endl;
+        Logger::log(LogSource::Bot, std::cerr, "Failed to add caption to the image.");
         return false;
     }
 }
@@ -170,10 +171,10 @@ long long getUserIdBySessionId(DatabaseManager* dbMain, const std::string& sessi
         try {
             res = std::stoll(userId);
         } catch (const std::invalid_argument& e) {
-            std::cerr << "Invalid argument: " << e.what() << std::endl;
+            Logger::log(LogSource::Database, std::cerr, std::string("Invalid argument: ") + e.what());
             return -1;
         } catch (const std::out_of_range& e) {
-            std::cerr << "Out of range: " << e.what() << std::endl;
+            Logger::log(LogSource::Database, std::cerr, std::string("Out of range: ") + e.what());
             return -1;
         }
         return res;
@@ -190,7 +191,7 @@ BotWorkflow::WorkflowMessage getSessionStatus(DatabaseManager* dbMain, const std
     whereRow.push_back(sessionsRow[0]);
     std::vector<SqliteTable::FieldValue> emptyRow;
     std::string selectSql = sessionsTable.generateSelectSQL(emptyRow, whereRow);
-    std::cout << "SELECT SQL: " << selectSql << std::endl;
+    Logger::log(LogSource::Database, std::cout, std::string("SELECT SQL: ") + selectSql);
     std::vector<std::vector<SqliteTable::FieldValue>> results = dbMain->executeSelectSQL(selectSql);
     if (!results.empty()) {
         *session_found = true;
@@ -276,11 +277,11 @@ void updateSessionStep(DatabaseManager* dbMain, const std::string& sessionId, Bo
     whereRow.push_back(sessionsRow[0]);
 
     std::string updateSql = sessionsTable.generateUpdateSQL(updateRow, whereRow);
-    std::cout << "UPDATE SQL: " << updateSql << std::endl;
+    Logger::log(LogSource::Database, std::cout, std::string("UPDATE SQL: ") + updateSql);
     if (dbMain->executeSQL(updateSql)) {
-        std::cout << "Successfully updated sessionId: " << sessionId << std::endl;
+        Logger::log(LogSource::Database, std::cout, std::string("Successfully updated sessionId: ") + sessionId);
     } else {
-        std::cerr << "Failed to update session: " << sessionId << std::endl;
+        Logger::log(LogSource::Database, std::cerr, std::string("Failed to update session: ") + sessionId);
     }
 }
 
@@ -302,11 +303,11 @@ void updateSessionLanguage(DatabaseManager* dbMain, const std::string& sessionId
     whereRow.push_back(sessionsRow[0]);
 
     std::string updateSql = sessionsTable.generateUpdateSQL(updateRow, whereRow);
-    std::cout << "UPDATE SQL: " << updateSql << std::endl;
+    Logger::log(LogSource::Database, std::cout, std::string("UPDATE SQL: ") + updateSql);
     if (dbMain->executeSQL(updateSql)) {
-        std::cout << "Successfully updated sessionId: " << sessionId << std::endl;
+        Logger::log(LogSource::Database, std::cout, std::string("Successfully updated sessionId: ") + sessionId);
     } else {
-        std::cerr << "Failed to update session: " << sessionId << std::endl;
+        Logger::log(LogSource::Database, std::cerr, std::string("Failed to update session: ") + sessionId);
     }
 }
 
@@ -327,11 +328,11 @@ void updateSessionTheme(DatabaseManager* dbMain, const std::string& sessionId, i
     whereRow.push_back(sessionsRow[0]);
 
     std::string updateSql = sessionsTable.generateUpdateSQL(updateRow, whereRow);
-    std::cout << "UPDATE SQL: " << updateSql << std::endl;
+    Logger::log(LogSource::Database, std::cout, std::string("UPDATE SQL: ") + updateSql);
     if (dbMain->executeSQL(updateSql)) {
-        std::cout << "Successfully updated sessionId: " << sessionId << std::endl;
+        Logger::log(LogSource::Database, std::cout, std::string("Successfully updated sessionId: ") + sessionId);
     } else {
-        std::cerr << "Failed to update session: " << sessionId << std::endl;
+        Logger::log(LogSource::Database, std::cerr, std::string("Failed to update session: ") + sessionId);
     }
 }
 
@@ -352,11 +353,11 @@ void updateSessionSize(DatabaseManager* dbMain, const std::string& sessionId, in
     whereRow.push_back(sessionsRow[0]);
 
     std::string updateSql = sessionsTable.generateUpdateSQL(updateRow, whereRow);
-    std::cout << "UPDATE SQL: " << updateSql << std::endl;
+    Logger::log(LogSource::Database, std::cout, std::string("UPDATE SQL: ") + updateSql);
     if (dbMain->executeSQL(updateSql)) {
-        std::cout << "Successfully updated sessionId: " << sessionId << std::endl;
+        Logger::log(LogSource::Database, std::cout, std::string("Successfully updated sessionId: ") + sessionId);
     } else {
-        std::cerr << "Failed to update session: " << sessionId << std::endl;
+        Logger::log(LogSource::Database, std::cerr, std::string("Failed to update session: ") + sessionId);
     }
 }
 
@@ -403,11 +404,11 @@ void RunBotCommand::setCaption(const std::string& value) {
 }
 
 bool RunBotCommand::executeCommand() {
-    std::cout << "Running MosaicImageBot..." << std::endl;
+    Logger::log(LogSource::Bot, std::cout, "Running MosaicImageBot...");
     std::string token = getToken();
 
     if (token.length() == 0) {
-        std::cerr << "You should set a token for the bot!" << std::endl;
+        Logger::log(LogSource::Bot, std::cerr, "You should set a token for the bot!");
         return false;
     }
 
@@ -453,14 +454,14 @@ bool RunBotCommand::executeCommand() {
     });
 
     try {
-        printf("Bot username: %s\n", bot->getApi().getMe()->username.c_str());
+        Logger::log(LogSource::Bot, std::cout, std::string("Bot username: ") + bot->getApi().getMe()->username.c_str());
         TgBot::TgLongPoll longPoll(*bot);
         while (true) {
-            printf("Long poll started\n");
+            Logger::log(LogSource::Bot, std::cout, "Long poll started");
             longPoll.start();
         }
     } catch (TgBot::TgException& e) {
-        printf("error: %s\n", e.what());
+        Logger::log(LogSource::Bot, std::cerr, std::string("Error: ") + e.what());
     }
     return true;
 }
@@ -499,11 +500,11 @@ void RunBotCommand::handleStartCommand(TgBot::Bot& bot, TgBot::Message::Ptr mess
     whereRow.push_back(sessionsRow[1]);
 
     std::string updateSql = sessionsTable.generateUpdateSQL(updateRow, whereRow);
-    std::cout << "UPDATE SQL: " << updateSql << std::endl;
+    Logger::log(LogSource::Database, std::cout, std::string("UPDATE SQL: ") + updateSql);
     if (dbMain->executeSQL(updateSql)) {
-        std::cout << "Successfully disabled all sessions for user with id " << userId << std::endl;
+        Logger::log(LogSource::Database, std::cout, std::string("Successfully disabled all sessions for user with id ") + std::to_string(userId));
     } else {
-        std::cerr << "Failed to disable all sessions for user with id " << userId << std::endl;
+        Logger::log(LogSource::Database, std::cerr, std::string("Failed to disable all sessions for user with id ") + std::to_string(userId));
     }
 
     std::vector<SqliteTable::FieldValue> row = sessionsTable.getEmptyRow();
@@ -521,11 +522,11 @@ void RunBotCommand::handleStartCommand(TgBot::Bot& bot, TgBot::Message::Ptr mess
     row[7].value = getFormatTimestampWithMilliseconds(timestamp);
 
     std::string insertSql = sessionsTable.generateInsertSQL(row, true);
-    printf("INSERT SQL: %s\n", insertSql.c_str());
+    Logger::log(LogSource::Database, std::cout, std::string("INSERT SQL: ") + insertSql);
     if (dbMain->executeSQL(insertSql)) {
-        std::cout << "Successfully inserted sessionId: " << sessionId << std::endl;
+        Logger::log(LogSource::Database, std::cout, std::string("Successfully inserted sessionId: ") + sessionId);
     } else {
-        std::cerr << "Failed to insert session: " << sessionId << std::endl;
+        Logger::log(LogSource::Database, std::cerr, std::string("Failed to insert session: ") + sessionId);
     }
 
     // Show the languages buttons
@@ -546,7 +547,7 @@ void RunBotCommand::handleStartCommand(TgBot::Bot& bot, TgBot::Message::Ptr mess
         }
         bot.getApi().sendMessage(message->chat->id, "Please select the language:", nullptr, nullptr, keyboard);
     } else {
-        std::cout << "Languages list is empty." << std::endl; // TODO: Need to be handled
+        Logger::log(LogSource::Database, std::cerr, "Languages list is empty."); // TODO: Need to be handled
     }
 }
 
@@ -613,7 +614,7 @@ void RunBotCommand::handleButtonClicked(TgBot::Bot& bot, TgBot::CallbackQuery::P
             keyboard->inlineKeyboard.push_back(rowButton);
             bot.getApi().sendMessage(query->message->chat->id, selectThemeMessage, nullptr, nullptr, keyboard);
         } else {
-            std::cout << "Captions list is empty." << std::endl; // TODO: Need to be handled
+            Logger::log(LogSource::Database, std::cerr, "Captions list is empty."); // TODO: Need to be handled
         }
     } else if (data.rfind("antimosaic_", 0) == 0) {
         size_t firstUnderscore = data.find('_');
@@ -812,7 +813,7 @@ RunBotCommand::PhotoProcessingStatus RunBotCommand::handlePhotoUpload(TgBot::Bot
         if (sessionId.empty()) {
             return PhotoProcessingStatus::STATUS_SESSION_NOT_FOUND;
         }
-        std::cout << "Session is found! " << sessionId << std::endl;
+        Logger::log(LogSource::Database, std::cout, std::string("Session is found! ") + sessionId);
 
         int lang_id = -1;
         int category_id;
@@ -880,7 +881,7 @@ RunBotCommand::PhotoProcessingStatus RunBotCommand::handlePhotoUpload(TgBot::Bot
         // Download the photo
         std::ostringstream photoUrl;
         photoUrl << "https://api.telegram.org/file/bot" << bot.getToken() << "/" << filePath;
-        std::cout << "photoUrl: " << photoUrl.str() << std::endl;
+        Logger::log(LogSource::Bot, std::cout, std::string("photoUrl: ") + photoUrl.str());
 
         bool getMessage = false;
         std::string waitForResultMessage = getMessageByTypeAndLang(dbMain, BotWorkflow::WorkflowMessage::STEP_WAITING_FOR_RESULT_MESSAGE, lang_id, &getMessage);
@@ -890,7 +891,7 @@ RunBotCommand::PhotoProcessingStatus RunBotCommand::handlePhotoUpload(TgBot::Bot
         bot.getApi().sendMessage(message->chat->id, waitForResultMessage);
 
         if (!createDirectory(getCurrentWorkingDir() + std::string("/.temp/images/") + sessionId)) {
-            std::cerr << "Couldn't create directory " << getCurrentWorkingDir() + std::string("/.temp/images/") << std::endl;
+            Logger::log(LogSource::Bot, std::cerr, std::string("Couldn't create directory ") + getCurrentWorkingDir() + "/.temp/images/");
             return PhotoProcessingStatus::STATUS_CANNOT_CREATE_DIRECTORY;
         }
 
@@ -911,7 +912,7 @@ RunBotCommand::PhotoProcessingStatus RunBotCommand::handlePhotoUpload(TgBot::Bot
         }
 
         if (!downloadFile(photoUrl.str(), fullImagePath)) {
-            std::cerr << "Couldn't download file " << fullImagePath << std::endl;
+            Logger::log(LogSource::Bot, std::cerr, std::string("Couldn't download file ") + fullImagePath);
             return PhotoProcessingStatus::STATUS_CANNOT_DOWNLOAD_FILE;
         }
 
@@ -924,7 +925,7 @@ RunBotCommand::PhotoProcessingStatus RunBotCommand::handlePhotoUpload(TgBot::Bot
         std::string command = generateCommandForMetapixel(fullImagePath, category_path, size, antimosaic, antimosaicPath);
 
         if(!addRequestToQueue(dbMain, sessionId, fullImagePath, command)) {
-            std::cerr << "Couldn't add request to queue" << std::endl;
+            Logger::log(LogSource::Bot, std::cerr, "Couldn't add request to queue");
             return PhotoProcessingStatus::STATUS_CANNOT_ADD_REQUEST;
         }
 
@@ -940,7 +941,7 @@ RunBotCommand::PhotoProcessingStatus RunBotCommand::handlePhotoUpload(TgBot::Bot
         // Download the photo
         std::ostringstream photoUrl;
         photoUrl << "https://api.telegram.org/file/bot" << bot.getToken() << "/" << filePath;
-        std::cout << "photoUrl: " << photoUrl.str() << std::endl;
+        Logger::log(LogSource::Bot, std::cout, std::string("photoUrl: ") + photoUrl.str());
 
         //bool getMessage = false;
         //std::string waitForResultMessage = getMessageByTypeAndLang(dbMain, BotWorkflow::WorkflowMessage::STEP_WAITING_FOR_RESULT_MESSAGE, lang_id, &getMessage);
@@ -950,7 +951,7 @@ RunBotCommand::PhotoProcessingStatus RunBotCommand::handlePhotoUpload(TgBot::Bot
         //bot.getApi().sendMessage(message->chat->id, waitForResultMessage);
 
         if (!createDirectory(getCurrentWorkingDir() + std::string("/.temp/images/") + antimosaicSessionId)) {
-            std::cerr << "Couldn't create directory " << getCurrentWorkingDir() + std::string("/.temp/images/") + antimosaicSessionId << std::endl;
+            Logger::log(LogSource::Bot, std::cerr, std::string("Couldn't create directory ") + getCurrentWorkingDir() + "/.temp/images/" + antimosaicSessionId);
             return PhotoProcessingStatus::STATUS_CANNOT_CREATE_DIRECTORY;
         }
 
@@ -960,13 +961,13 @@ RunBotCommand::PhotoProcessingStatus RunBotCommand::handlePhotoUpload(TgBot::Bot
             try {
                 std::filesystem::remove(fullImagePath);
            } catch (const std::filesystem::filesystem_error& e) {
-                std::cerr << "Error deleting file " << fullImagePath << ": " << e.what() << std::endl;
+                Logger::log(LogSource::Bot, std::cerr, std::string("Error deleting file ") + fullImagePath + ": " + e.what());
                 return PhotoProcessingStatus::STATUS_CANNOT_DELETE_FILE;
            }
         }
 
         if (!downloadFile(photoUrl.str(), fullImagePath)) {
-            std::cerr << "Couldn't download file " << fullImagePath << std::endl;
+            Logger::log(LogSource::Bot, std::cerr, std::string("Couldn't download file ") + fullImagePath);
             return PhotoProcessingStatus::STATUS_CANNOT_DOWNLOAD_FILE;
         }
 
@@ -1066,12 +1067,12 @@ bool RunBotCommand::updateRequestStatus(const std::string& requestId, BotWorkflo
     whereRow.push_back(requestsRow[0]);
 
     std::string updateSql = requestsTable.generateUpdateSQL(updateRow, whereRow);
-    std::cout << "UPDATE SQL: " << updateSql << std::endl;
+    Logger::log(LogSource::Database, std::cout, std::string("UPDATE SQL: ") + updateSql);
     if (dbManager->executeSQL(updateSql)) {
-        std::cout << "Successfully updated request with id: " << requestId << std::endl;
+        Logger::log(LogSource::Database, std::cout, std::string("Successfully updated request with id: ") + requestId);
         return true;
     } else {
-        std::cerr << "Failed to update request: " << requestId << std::endl;
+        Logger::log(LogSource::Database, std::cerr, std::string("Failed to update request: ") + requestId);
         return false;
     }
 }
@@ -1097,7 +1098,7 @@ void RunBotCommand::update(const std::any& message) {
 
     // Processing image with metapixel, sending to user and sending duplicate if needed
     if(!processImageWithMetapixel(image_path, command)) {
-        std::cerr << "Couldn't process file " << image_path << std::endl;
+        Logger::log(LogSource::Bot, std::cerr, std::string("Couldn't process file ") + image_path);
         updateRequestStatus(request_id, BotWorkflow::RequestStep::REQUEST_STEP_ERROR_EXECUTING_METAPIXEL_COMMAND);
         return;
     }
@@ -1109,18 +1110,18 @@ void RunBotCommand::update(const std::any& message) {
     }
 
     std::string mosaicImagePath = image_path.substr(0, image_path.find_last_of('.')) + "_mosaic." + getFileExtensionFromUrl(image_path);
-    std::cout << "mosaicImagePath: " << mosaicImagePath << std::endl;
+    Logger::log(LogSource::Bot, std::cout, std::string("mosaicImagePath: ") + mosaicImagePath);
 
     std::string imageToSend = mosaicImagePath;
 
     if (this->doAddCaption) {
         if (!addCaption(mosaicImagePath, this->caption)) {
-            std::cerr << "Couldn't add caption to file " << mosaicImagePath << std::endl;
+            Logger::log(LogSource::Bot, std::cerr, std::string("Couldn't add caption to file ") + mosaicImagePath);
             updateRequestStatus(request_id, BotWorkflow::RequestStep::REQUEST_STEP_ERROR_ADDING_CAPTION);
             return;
         } else {
             imageToSend = mosaicImagePath.substr(0, mosaicImagePath.find_last_of('.')) + "_caption." + getFileExtensionFromUrl(mosaicImagePath);
-            std::cout << "imageToSend: " << imageToSend << std::endl;
+            Logger::log(LogSource::Bot, std::cout, std::string("imageToSend: ") + imageToSend);
         }
     }
 
