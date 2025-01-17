@@ -28,10 +28,12 @@ void Logger::log(LogSource source, std::ostream &stream, const std::string &mess
     localtime_r(&time_t_now, &localTime);
 #endif
 
-    stream << std::put_time(&localTime, "%d.%m.%Y %H:%M:%S")
+    const int sourceWidth = 12;
+
+    stream << std::left << std::put_time(&localTime, "%d.%m.%Y %H:%M:%S")
            << '.' << std::setfill('0') << std::setw(3) << ms.count()
-           << "\t" << logSourceToString(source)
-           << "\t" << message << std::endl;
+           << " " << std::setw(sourceWidth) << std::setfill(' ')
+           << logSourceToString(source) << message << std::endl;
 }
 
 void Logger::logToFile(LogSource source, const std::string &filename, const std::string &message) {
@@ -50,10 +52,12 @@ void Logger::logToFile(LogSource source, const std::string &filename, const std:
         localtime_r(&time_t_now, &localTime);
 #endif
 
-        fileStream << std::put_time(&localTime, "%d.%m.%Y %H:%M:%S")
+        const int sourceWidth = 12;
+
+        fileStream << std::left << std::put_time(&localTime, "%d.%m.%Y %H:%M:%S")
                    << '.' << std::setfill('0') << std::setw(3) << ms.count()
-                   << "\t" << logSourceToString(source)
-                   << "\t" << message << std::endl;
+                   << " " << std::setw(sourceWidth) << std::setfill(' ')
+                   << logSourceToString(source) << message << std::endl;
     } else {
         std::cerr << "[Logger] Failed to open log file: " << filename << std::endl;
     }
